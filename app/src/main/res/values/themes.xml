@@ -1,0 +1,7 @@
+<resources>
+ <style name="Theme.KotobaWall" parent="android:style/Theme.Material.Light.NoActionBar">
+  <item name="android:fontFamily">sans</item>
+  <item name="android:windowLightStatusBar">true</item>
+  <item name="android:colorAccent">#235BB5</item>
+ </style>
+</resources>

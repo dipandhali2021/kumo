@@ -1,0 +1,1 @@
+-keep class com.kotobawall.app.RotationWorker { public <init>(android.content.Context, androidx.work.WorkerParameters); }
