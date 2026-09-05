@@ -1,0 +1,9 @@
+{
+ "version":"2.0.0",
+ "tasks":[
+  {"label":"Android: Build debug APK","type":"shell","command":"./gradlew","args":[":app:assembleDebug"],"windows":{"command":".\\gradlew.bat"},"group":{"kind":"build","isDefault":true},"problemMatcher":[]},
+  {"label":"Android: Install on connected device","type":"shell","command":"./gradlew","args":[":app:installDebug"],"windows":{"command":".\\gradlew.bat"},"problemMatcher":[]},
+  {"label":"Android: Unit tests and lint","type":"shell","command":"./gradlew","args":[":app:testDebugUnitTest",":app:lintDebug"],"windows":{"command":".\\gradlew.bat"},"problemMatcher":[]},
+  {"label":"Android: Launch app","type":"shell","command":"adb","args":["shell","am","start","-n","com.kotobawall.app/.MainActivity"],"problemMatcher":[]}
+ ]
+}
