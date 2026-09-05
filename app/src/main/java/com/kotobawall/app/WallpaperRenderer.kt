@@ -6,6 +6,8 @@ import android.graphics.text.LineBreaker
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
+import android.text.TextUtils
+import android.text.TextDirectionHeuristics
 import androidx.exifinterface.media.ExifInterface
 import java.io.File
 import java.util.Locale
@@ -73,33 +75,47 @@ class WallpaperRenderer(private val context: Context) {
   } catch(e: Exception) { raw.recycle(); throw e }
  }
  fun drawText(canvas: Canvas,s: WallSettings,word: Word,width: Int,height: Int) {
-  val unit = width/360f
-  val margin = 22f*unit; val padding = 20f*unit
-  val textWidth = (width-2*(margin+padding)).toInt().coerceAtLeast(1)
-  fun line(text: String,size: Float,color: Int,bold: Boolean=false): StaticLayout {
-   val p = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-    textSize = size*unit*s.scale.coerceIn(0.75f,1.4f)
-    this.color = color
-    typeface = Typeface.create("sans-serif",if(bold) Typeface.BOLD else Typeface.NORMAL)
-    textLocale = Locale.JAPANESE
+  val unit=width/360f;val margin=22f*unit;val padding=20f*unit
+  val textWidth=(width-2*(margin+padding)).toInt().coerceAtLeast(1)
+  val t=s.typography
+  val resolved=t.rows.take(t.lineCount).map { it to t.text(it,word) }.filter { it.second.isNotBlank() }
+  if(resolved.isEmpty()) return
+  val lines=resolved.map { (row,text) ->
+   val p=TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+    textSize=row.size.coerceIn(12f,60f)*unit*s.scale.coerceIn(0.75f,1.4f)
+    color=try {Color.parseColor(row.color)} catch(_: IllegalArgumentException) {Color.WHITE}
+    val family=when(row.font) {"Serif"->"serif";"Monospace"->"monospace";"Rounded"->"sans-serif-rounded";else->"sans-serif"}
+    typeface=Typeface.create(family,if(row.bold) Typeface.BOLD else Typeface.NORMAL)
+    textLocale=Locale.JAPANESE
     setShadowLayer(2f*unit,0f,unit,Color.BLACK)
    }
-   return StaticLayout.Builder.obtain(text,0,text.length,p,textWidth)
-    .setAlignment(Layout.Alignment.ALIGN_CENTER).setIncludePad(true)
+   // One visual line per row. Shrink long strings to a readable floor, then ellipsize.
+   val measured=p.measureText(text)
+   if(measured>textWidth) p.textSize=(p.textSize*textWidth/measured).coerceAtLeast(12f*unit)
+   val alignment=when(if(row.alignment=="Default") t.alignment else row.alignment) {
+    "Left"->Layout.Alignment.ALIGN_NORMAL;"Right"->Layout.Alignment.ALIGN_OPPOSITE;else->Layout.Alignment.ALIGN_CENTER
+   }
+   StaticLayout.Builder.obtain(text,0,text.length,p,textWidth)
+    .setAlignment(alignment).setTextDirection(TextDirectionHeuristics.LTR).setIncludePad(true)
+    .setMaxLines(1).setEllipsize(TextUtils.TruncateAt.END).setEllipsizedWidth(textWidth)
     .setBreakStrategy(LineBreaker.BREAK_STRATEGY_SIMPLE).build()
   }
-  val lines = mutableListOf(line(word.written,40f,Color.WHITE,true))
-  if(s.showReading && word.reading != word.written) lines += line(word.reading,21f,Color.rgb(223,234,248))
-  if(s.showMeaning) lines += line(word.meaning,18f,Color.WHITE)
-  val gap = 8f*unit
-  val total = lines.sumOf { it.height }.toFloat()+gap*(lines.size-1)+padding*2
-  val top = WallMath.top(height,total,s.position,margin)
-  val panel = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb((s.panel.coerceIn(0f,0.8f)*255).toInt(),0,0,0) }
+  val gap=t.spacing.coerceIn(0f,24f)*unit
+  val natural=lines.sumOf {it.height}.toFloat()+gap*(lines.size-1)+padding*2
+  // Fit unusually short screens rather than clipping a large custom block.
+  val fit=minOf(1f,(height-2*margin).coerceAtLeast(1f)/natural)
+  val total=natural*fit
+  val top=WallMath.top(height,total,s.position,margin)
+  val panel=Paint(Paint.ANTI_ALIAS_FLAG).apply {color=Color.argb((s.panel.coerceIn(0f,0.8f)*255).toInt(),0,0,0)}
   canvas.drawRoundRect(RectF(margin,top,width-margin,top+total),18f*unit,18f*unit,panel)
-  var y = top+padding
-  lines.forEach {
-   canvas.save(); canvas.translate(margin+padding,y); it.draw(canvas); canvas.restore()
-   y += it.height+gap
+  canvas.save()
+  canvas.translate((width-width*fit)/2,top)
+  canvas.scale(fit,fit)
+  var y=padding
+  lines.forEach {layout ->
+   canvas.save();canvas.translate(margin+padding,y);layout.draw(canvas);canvas.restore()
+   y+=layout.height+gap
   }
+  canvas.restore()
  }
 }

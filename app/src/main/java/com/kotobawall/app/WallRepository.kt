@@ -38,15 +38,16 @@ class WallRepository(private val context: Context) {
   wordIndex=prefs.getInt("word",0).coerceIn(0,words.lastIndex),
   background=prefs.getString("background","Ocean") ?: "Ocean", photo=prefs.getString("photo","") ?: "",
   showReading=prefs.getBoolean("reading",true), showMeaning=prefs.getBoolean("meaning",true),
-  scale=prefs.getFloat("scale",1f), position=prefs.getFloat("position",0.65f), panel=prefs.getFloat("panel",0.4f),
+  scale=prefs.getFloat("scale",1f), position=prefs.getFloat("position",0.5f), panel=prefs.getFloat("panel",0.4f),
   cropX=prefs.getFloat("cropX",0.5f),cropY=prefs.getFloat("cropY",0.5f),hours=prefs.getInt("hours",0),
-  lastApplied=prefs.getLong("lastApplied",0),lastError=prefs.getString("error","") ?: ""
+  lastApplied=prefs.getLong("lastApplied",0),lastError=prefs.getString("error","") ?: "",
+  typography=TypographyCodec.decode(prefs.getString("typography",null),prefs.getBoolean("reading",true),prefs.getBoolean("meaning",true))
  )
  private fun save(s: WallSettings) {
   check(prefs.edit().putInt("word",s.wordIndex).putString("background",s.background).putString("photo",s.photo)
    .putBoolean("reading",s.showReading).putBoolean("meaning",s.showMeaning).putFloat("scale",s.scale)
    .putFloat("position",s.position).putFloat("panel",s.panel).putFloat("cropX",s.cropX).putFloat("cropY",s.cropY)
-   .putInt("hours",s.hours).putLong("lastApplied",s.lastApplied).putString("error",s.lastError).commit()) {
+   .putString("typography",TypographyCodec.encode(s.typography)).putInt("hours",s.hours).putLong("lastApplied",s.lastApplied).putString("error",s.lastError).commit()) {
    "Could not save settings. Check available storage."
   }
   mutable.value = s

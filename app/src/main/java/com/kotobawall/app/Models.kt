@@ -6,9 +6,10 @@ data class Word(val id: String, val written: String, val reading: String, val me
 data class WallSettings(
  val wordIndex: Int = 0, val background: String = "Ocean", val photo: String = "",
  val showReading: Boolean = true, val showMeaning: Boolean = true,
- val scale: Float = 1f, val position: Float = 0.65f, val panel: Float = 0.4f,
+ val scale: Float = 1f, val position: Float = 0.5f, val panel: Float = 0.4f,
  val cropX: Float = 0.5f, val cropY: Float = 0.5f,
- val hours: Int = 0, val lastApplied: Long = 0L, val lastError: String = ""
+ val hours: Int = 0, val lastApplied: Long = 0L, val lastError: String = "",
+ val typography: Typography = Typography()
 )
 object WallMath {
  fun nextIndex(current: Int, count: Int): Int {

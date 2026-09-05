@@ -1,6 +1,7 @@
 package com.kotobawall.app
 
 import android.graphics.Bitmap
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -35,6 +36,9 @@ import kotlin.math.roundToInt
 @Composable
 fun StudioScreen(vm: WallViewModel, s: WallSettings, bitmap: Bitmap?, error: String, busy: Boolean,
  modifier: Modifier = Modifier, pick: ()->Unit, export: ()->Unit) {
+ val draft by vm.typographyDraft.collectAsStateWithLifecycle()
+ val typography=draft ?: s.typography
+ val dirty=typography!=s.typography
  var position by remember(s.position) { mutableFloatStateOf(s.position) }
  var scale by remember(s.scale) { mutableFloatStateOf(s.scale) }
  var panel by remember(s.panel) { mutableFloatStateOf(s.panel) }
@@ -42,7 +46,7 @@ fun StudioScreen(vm: WallViewModel, s: WallSettings, bitmap: Bitmap?, error: Str
  var cropY by remember(s.cropY) { mutableFloatStateOf(s.cropY) }
  var expanded by rememberSaveable { mutableStateOf(false) }
  var clockGuide by rememberSaveable { mutableStateOf(true) }
- val live = s.copy(position=position,scale=scale,panel=panel)
+ val live = s.copy(position=position,scale=scale,panel=panel,typography=typography)
  val word = vm.words[s.wordIndex]
  val previewPane: @Composable (Modifier)->Unit = { paneModifier ->
   Column(paneModifier.padding(horizontal=16.dp,vertical=4.dp)) {
@@ -59,13 +63,19 @@ fun StudioScreen(vm: WallViewModel, s: WallSettings, bitmap: Bitmap?, error: Str
    item {
     Text("Position & style",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold)
     Text("Drag a slider—the preview stays visible.",style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+    Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+     linkedMapOf("Top" to 0f,"Middle" to 0.5f,"Bottom" to 1f).forEach {(name,target) ->
+      FilterChip(selected=kotlin.math.abs(position-target)<0.01f,onClick={position=target;vm.edit {it.copy(position=target)}},enabled=!busy,label={Text(name)})
+     }
+    }
     LiveSlider("Text position · top to bottom",position,0f..1f,!busy,{position=it}) { vm.edit { it.copy(position=position) } }
     LiveSlider("Text size",scale,0.75f..1.4f,!busy,{scale=it}) { vm.edit { it.copy(scale=scale) } }
     LiveSlider("Dark panel",panel,0f..0.8f,!busy,{panel=it}) { vm.edit { it.copy(panel=panel) } }
    }
    item {
-    StudioSwitch("Kana reading",s.showReading,!busy) { v -> vm.edit { it.copy(showReading=v) } }
-    StudioSwitch("English meaning",s.showMeaning,!busy) { v -> vm.edit { it.copy(showMeaning=v) } }
+    TypographyEditor(typography,!busy,dirty,onChange={vm.editTypography(it)},onSave={vm.saveTypography(typography)})
+   }
+   item {
     StudioSwitch("Show clock guide",clockGuide,true) { clockGuide=it }
     Text("The clock guide is not saved. Keep room for your phone’s notifications and fingerprint sensor.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
    }
@@ -88,8 +98,8 @@ fun StudioScreen(vm: WallViewModel, s: WallSettings, bitmap: Bitmap?, error: Str
     }
    }
    item {
-    OutlinedButton(onClick=export,enabled=!busy && bitmap!=null,modifier=Modifier.fillMaxWidth()) {
-     Icon(Icons.Outlined.Download,null); Spacer(Modifier.width(8.dp)); Text("Export wallpaper PNG")
+    OutlinedButton(onClick=export,enabled=!busy && bitmap!=null && !dirty,modifier=Modifier.fillMaxWidth()) {
+     Icon(Icons.Outlined.Download,null); Spacer(Modifier.width(8.dp)); Text(if(dirty) "Save line layout before export" else "Export wallpaper PNG")
     }
     Text("Settings save when you release a slider. Apply changes now, or let the next automatic update use them.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
    }
@@ -112,8 +122,8 @@ fun StudioScreen(vm: WallViewModel, s: WallSettings, bitmap: Bitmap?, error: Str
    }
   }
   Surface(tonalElevation=2.dp) {
-   Button(onClick={vm.apply()},enabled=!busy && bitmap!=null,modifier=Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=8.dp).heightIn(min=48.dp)) {
-    Icon(Icons.Outlined.Lock,null); Spacer(Modifier.width(8.dp)); Text(if(busy) "Working…" else "Apply to lock screen")
+   Button(onClick={vm.apply(typography)},enabled=!busy && bitmap!=null,modifier=Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=8.dp).heightIn(min=48.dp)) {
+    Icon(Icons.Outlined.Lock,null); Spacer(Modifier.width(8.dp)); Text(if(busy) "Working…" else if(dirty) "Save & apply to lock screen" else "Apply to lock screen")
    }
   }
  }

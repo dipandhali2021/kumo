@@ -13,6 +13,9 @@ class WallViewModel(app: Application): AndroidViewModel(app) {
  val words=repo.words
  val settings=repo.settings
  val cycle=ScreenCycleController.state
+ private val draft=MutableStateFlow<Typography?>(null)
+ val typographyDraft=draft.asStateFlow()
+ fun editTypography(t: Typography) {if(!_busy.value) draft.value=t}
  private val _preview=MutableStateFlow<Bitmap?>(null)
  val preview=_preview.asStateFlow()
  private val _previewError=MutableStateFlow("")
@@ -24,7 +27,7 @@ class WallViewModel(app: Application): AndroidViewModel(app) {
   ScreenCycleController.initialize(app)
   viewModelScope.launch {
    // Only background/crop changes need a decoded bitmap. Text is drawn live by Compose.
-   settings.map { it.copy(lastApplied=0,lastError="",hours=0,wordIndex=0,scale=1f,position=0.65f,panel=0.4f,showReading=true,showMeaning=true) }.distinctUntilChanged().collectLatest { s ->
+   settings.map { it.copy(lastApplied=0,lastError="",hours=0,wordIndex=0,scale=1f,position=0.65f,panel=0.4f,showReading=true,showMeaning=true,typography=Typography()) }.distinctUntilChanged().collectLatest { s ->
     delay(180)
     try { _previewError.value=""; _preview.value=repo.preview(s) }
     catch(e: CancellationException) { throw e }
@@ -55,7 +58,11 @@ class WallViewModel(app: Application): AndroidViewModel(app) {
  fun pick(uri: Uri)=operation("Background saved on this device") { repo.importPhoto(uri) }
  fun palette(name: String)=operation { repo.usePalette(name) }
  fun next()=edit { it.copy(wordIndex=WallMath.nextIndex(it.wordIndex,words.size)) }
- fun apply()=operation("Lock-screen wallpaper updated") { repo.apply() }
+ fun saveTypography(t: Typography)=operation("Line layout saved") { repo.edit { it.copy(typography=t) }; draft.value=null }
+ fun apply(t: Typography?=null)=operation("Lock-screen wallpaper updated") {
+  if(t!=null) { repo.edit { it.copy(typography=t) }; draft.value=null }
+  repo.apply()
+ }
  fun export(uri: Uri)=operation("Wallpaper PNG saved") { repo.export(uri) }
  fun startCycle()=operation("Screen-off updates started. Turn your screen off, wait a moment, then wake it.") {
   repo.edit { it.copy(hours=0,lastError="") }
