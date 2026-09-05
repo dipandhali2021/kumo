@@ -2,6 +2,7 @@ package com.kotobawall.app
 
 import android.content.Context
 import android.graphics.*
+import android.graphics.text.LineBreaker
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
@@ -85,7 +86,7 @@ class WallpaperRenderer(private val context: Context) {
    }
    return StaticLayout.Builder.obtain(text,0,text.length,p,textWidth)
     .setAlignment(Layout.Alignment.ALIGN_CENTER).setIncludePad(true)
-    .setBreakStrategy(Layout.BREAK_STRATEGY_SIMPLE).build()
+    .setBreakStrategy(LineBreaker.BREAK_STRATEGY_SIMPLE).build()
   }
   val lines = mutableListOf(line(word.written,40f,Color.WHITE,true))
   if(s.showReading && word.reading != word.written) lines += line(word.reading,21f,Color.rgb(223,234,248))
