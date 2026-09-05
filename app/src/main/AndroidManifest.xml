@@ -1,5 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
  <uses-permission android:name="android.permission.SET_WALLPAPER" />
+ <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+ <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+ <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+ <uses-permission android:name="android.permission.WAKE_LOCK" />
  <application android:name=".KotobaApplication" android:allowBackup="false"
   android:label="Kotoba Wall" android:icon="@drawable/ic_launcher"
   android:supportsRtl="true" android:theme="@style/Theme.KotobaWall">
@@ -9,5 +13,10 @@
     <category android:name="android.intent.category.LAUNCHER" />
    </intent-filter>
   </activity>
+  <service android:name=".ScreenCycleService" android:exported="false"
+   android:stopWithTask="false" android:foregroundServiceType="specialUse">
+   <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+    android:value="User-enabled vocabulary lock-screen wallpaper updates on screen-off events, with an ongoing notification and explicit Stop control." />
+  </service>
  </application>
 </manifest>

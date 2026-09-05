@@ -96,7 +96,7 @@ class WallRepository(private val context: Context) {
  suspend fun preview(s: WallSettings): Bitmap = withContext(Dispatchers.Default) {
   mutex.withLock {
    val (w,h)=outputSize()
-   renderer.render(s,words[s.wordIndex],360,(360f*h/w).roundToInt())
+   renderer.render(s,words[s.wordIndex],360,(360f*h/w).roundToInt(),includeText=false)
   }
  }
  suspend fun apply(advance: Boolean=false, scheduled: Boolean=false): Boolean = withContext(Dispatchers.IO) {

@@ -1,21 +1,21 @@
 package com.kotobawall.app
 
 import android.os.Bundle
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
@@ -24,11 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -38,7 +34,6 @@ import android.os.Build
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.flow.collect
-import kotlin.math.roundToInt
 
 class MainActivity: ComponentActivity() {
  override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,6 +63,12 @@ fun KotobaApp(vm: WallViewModel=viewModel()) {
  val preview by vm.preview.collectAsStateWithLifecycle()
  val previewError by vm.previewError.collectAsStateWithLifecycle()
  val busy by vm.busy.collectAsStateWithLifecycle()
+ val cycle by vm.cycle.collectAsStateWithLifecycle()
+ val context=LocalContext.current
+ var confirmCycle by rememberSaveable { mutableStateOf(false) }
+ val notificationPermission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+  if(granted) vm.startCycle() else vm.messages.tryEmit("Notification permission is needed for this opt-in mode. You can allow it in Android settings.")
+ }
  var tab by rememberSaveable { mutableIntStateOf(0) }
  var pendingHours by rememberSaveable { mutableIntStateOf(0) }
  var showAbout by rememberSaveable { mutableStateOf(false) }
@@ -88,71 +89,9 @@ fun KotobaApp(vm: WallViewModel=viewModel()) {
   } }
  ) { padding ->
   when(tab) {
-   0 -> LazyColumn(Modifier.fillMaxSize().padding(padding),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
-    item {
-     Column(Modifier.fillMaxWidth(),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(12.dp)) {
-      Text("Your next moment of learning",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.SemiBold)
-      Box(Modifier.width(184.dp).aspectRatio(if(preview!=null) preview!!.width.toFloat()/preview!!.height else 0.48f)
-       .clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
-       preview?.let { Image(it.asImageBitmap(),contentDescription="Generated lock-screen wallpaper preview",modifier=Modifier.fillMaxSize(),contentScale=ContentScale.FillBounds) }
-        ?: if(previewError.isEmpty()) CircularProgressIndicator(Modifier.align(Alignment.Center))
-        else Text("Preview unavailable. Choose another photo or a gradient.",modifier=Modifier.align(Alignment.Center).padding(16.dp),color=MaterialTheme.colorScheme.onSurfaceVariant)
-       Column(Modifier.align(Alignment.TopCenter).padding(top=28.dp),horizontalAlignment=Alignment.CenterHorizontally) {
-        Text("9:41",style=MaterialTheme.typography.headlineLarge,color=Color.White)
-        Text("Clock preview",style=MaterialTheme.typography.labelSmall,color=Color.White.copy(alpha=0.8f))
-       }
-      }
-      Text("Clock is a guide only; it is not saved in your image.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-     }
-    }
-    item {
-     Card(Modifier.fillMaxWidth()) {
-      Row(Modifier.padding(16.dp),verticalAlignment=Alignment.CenterVertically) {
-       Column(Modifier.weight(1f)) {
-        Text(vm.words[s.wordIndex].written,style=MaterialTheme.typography.headlineSmall)
-        Text(vm.words[s.wordIndex].meaning,style=MaterialTheme.typography.bodyMedium)
-       }
-       TextButton(onClick={vm.next()},enabled=!busy) { Text("Next"); Icon(Icons.Outlined.NavigateNext,null) }
-      }
-     }
-    }
-    item {
-     Button(onClick={vm.apply()},enabled=!busy && preview!=null,modifier=Modifier.fillMaxWidth().heightIn(min=52.dp)) {
-      Icon(Icons.Outlined.Lock,null); Spacer(Modifier.width(8.dp)); Text(if(busy) "Working…" else "Set lock-screen wallpaper")
-     }
-     Spacer(Modifier.height(8.dp))
-     Text("Changes in the editor are saved, but apply only when you tap above or a scheduled update runs.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-    item {
-     SectionTitle("Background",Icons.Outlined.Photo)
-     OutlinedButton(onClick={picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))},enabled=!busy,modifier=Modifier.fillMaxWidth()) {
-      Icon(Icons.Outlined.AddPhotoAlternate,null); Spacer(Modifier.width(8.dp)); Text(if(s.photo.isEmpty()) "Choose a photo" else "Replace photo")
-     }
-     Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-      WallpaperRenderer.palettes.keys.forEach { name ->
-       FilterChip(selected=s.photo.isEmpty() && s.background==name,onClick={vm.palette(name)},enabled=!busy,label={Text(name)})
-      }
-     }
-     if(s.photo.isNotEmpty()) {
-      SettingSlider("Crop · left / right",s.cropX,0f..1f,!busy) { v -> vm.edit { it.copy(cropX=v) } }
-      SettingSlider("Crop · top / bottom",s.cropY,0f..1f,!busy) { v -> vm.edit { it.copy(cropY=v) } }
-     }
-    }
-    item {
-     SectionTitle("Vocabulary layout",Icons.Outlined.Tune)
-     ToggleRow("Kana reading","Hidden when it matches the main word",s.showReading,!busy) { v -> vm.edit { it.copy(showReading=v) } }
-     ToggleRow("English meaning","A short definition below the word",s.showMeaning,!busy) { v -> vm.edit { it.copy(showMeaning=v) } }
-     SettingSlider("Text size",s.scale,0.75f..1.4f,!busy) { v -> vm.edit { it.copy(scale=v) } }
-     SettingSlider("Vertical position",s.position,0f..1f,!busy) { v -> vm.edit { it.copy(position=v) } }
-     SettingSlider("Dark panel opacity",s.panel,0f..0.8f,!busy) { v -> vm.edit { it.copy(panel=v) } }
-     Text("Leave room for your clock, notifications and fingerprint sensor. Actual placement can differ by phone.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-    item {
-     OutlinedButton(onClick={exporter.launch("kotoba-${vm.words[s.wordIndex].id}.png")},enabled=!busy,modifier=Modifier.fillMaxWidth()) {
-      Icon(Icons.Outlined.Download,null); Spacer(Modifier.width(8.dp)); Text("Save wallpaper as PNG")
-     }
-    }
-   }
+   0 -> StudioScreen(vm,s,preview,previewError,busy,Modifier.padding(padding),
+    pick={picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))},
+    export={exporter.launch("kotoba-${vm.words[s.wordIndex].id}.png")})
    1 -> WordLibrary(vm,s,busy,Modifier.padding(padding)) { tab=0 }
    2 -> LazyColumn(Modifier.fillMaxSize().padding(padding),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
     item {
@@ -162,14 +101,33 @@ fun KotobaApp(vm: WallViewModel=viewModel()) {
      Spacer(Modifier.height(12.dp))
      Text("Automatically render the next vocabulary card and update your lock screen. Everything stays on your device.",style=MaterialTheme.typography.bodyLarge)
     }
+    item { Card { Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+     Row(verticalAlignment=Alignment.CenterVertically) {
+      Icon(Icons.Outlined.PhonelinkLock,null,tint=MaterialTheme.colorScheme.primary)
+      Spacer(Modifier.width(12.dp))
+      Text("New word on screen-off",style=MaterialTheme.typography.titleMedium,modifier=Modifier.weight(1f))
+     }
+     Text("Keep the same background. Prepare the next word when your screen turns off, ready for the next wake.")
+     Text(when {
+      cycle.running -> "Active · ongoing notification shown"
+      cycle.enabled -> "Stopped · tap Resume to restart"
+      else -> "Off · enable to start"
+     },color=MaterialTheme.colorScheme.primary)
+     if(cycle.error.isNotEmpty()) Text(cycle.error,color=MaterialTheme.colorScheme.error)
+     Button(onClick={if(cycle.running) vm.stopCycle() else confirmCycle=true},enabled=!busy,modifier=Modifier.fillMaxWidth()) {
+      Text(if(cycle.running) "Stop screen-off updates" else if(cycle.enabled) "Resume screen-off updates" else "Enable screen-off updates")
+     }
+     if(cycle.enabled && !cycle.running) TextButton(onClick={vm.stopCycle()}) {Text("Turn this mode off")}
+     Text("An ongoing notification is required. Fast toggles may be combined. Battery restrictions or force-stop can stop updates; reopen the app and resume. The timer below is an alternative, not an additional trigger.",style=MaterialTheme.typography.bodySmall)
+    } } }
     item { OutlinedCard {
      Column(Modifier.padding(16.dp)) {
       Text("Update frequency",style=MaterialTheme.typography.titleMedium)
       listOf(0 to "Off · manual only",6 to "Every 6 hours",12 to "Every 12 hours",24 to "Daily").forEach { (hours,label) ->
        Row(Modifier.fillMaxWidth().heightIn(min=52.dp).clickable(enabled=!busy) {
-        if(hours==0) vm.schedule(0) else if(hours!=s.hours) pendingHours=hours
+        if(hours==0) vm.schedule(0) else if(hours!=s.hours || cycle.enabled) pendingHours=hours
        },verticalAlignment=Alignment.CenterVertically) {
-        RadioButton(selected=s.hours==hours,onClick=null,enabled=!busy)
+        RadioButton(selected=s.hours==hours && !cycle.enabled,onClick=null,enabled=!busy)
         Spacer(Modifier.width(12.dp)); Text(label)
        }
       }
@@ -189,6 +147,14 @@ fun KotobaApp(vm: WallViewModel=viewModel()) {
    }
   }
  }
+ if(confirmCycle) AlertDialog(onDismissRequest={confirmCycle=false},title={Text("Enable screen-off updates?")},
+  text={Text("Kotoba Wall will keep a service active with an ongoing notification and a Stop control. It updates your lock-screen image after screen-off events. Android can delay or stop it; it is not guaranteed on every wake. Enabling this turns off timed rotation.")},
+  confirmButton={TextButton(onClick={
+   confirmCycle=false
+   if(Build.VERSION.SDK_INT>=33 && ContextCompat.checkSelfPermission(context,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)
+    notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+   else vm.startCycle()
+  }) {Text("Enable")}},dismissButton={TextButton(onClick={confirmCycle=false}) {Text("Cancel")}})
  if(pendingHours>0) AlertDialog(onDismissRequest={pendingHours=0},title={Text("Enable automatic wallpaper changes?")},
   text={Text("Your lock-screen wallpaper will be replaced with the next word approximately every $pendingHours hours. The original background is preserved. You can turn this off at any time.")},
   confirmButton={TextButton(onClick={vm.schedule(pendingHours);pendingHours=0}) {Text("Enable")}},
@@ -198,31 +164,6 @@ fun KotobaApp(vm: WallViewModel=viewModel()) {
   confirmButton={TextButton(onClick={showAbout=false}) {Text("Close")}})
 }
 
-@Composable
-private fun SectionTitle(title: String,icon: ImageVector) {
- Row(Modifier.padding(bottom=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-  Icon(icon,null,tint=MaterialTheme.colorScheme.primary)
-  Text(title,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold)
- }
-}
-@Composable
-private fun SettingSlider(label: String,value: Float,range: ClosedFloatingPointRange<Float>,enabled: Boolean,onCommit: (Float)->Unit) {
- var local by remember(value) { mutableFloatStateOf(value) }
- Column(Modifier.padding(vertical=8.dp)) {
-  Row { Text(label,Modifier.weight(1f)); Text("${(local*100).roundToInt()}%",color=MaterialTheme.colorScheme.onSurfaceVariant) }
-  Slider(value=local,onValueChange={local=it},valueRange=range,enabled=enabled,onValueChangeFinished={onCommit(local)})
- }
-}
-@Composable
-private fun ToggleRow(title: String,description: String,checked: Boolean,enabled: Boolean,onChange: (Boolean)->Unit) {
- Row(Modifier.fillMaxWidth().padding(vertical=8.dp),verticalAlignment=Alignment.CenterVertically) {
-  Column(Modifier.weight(1f).padding(end=16.dp)) {
-   Text(title,style=MaterialTheme.typography.bodyLarge)
-   Text(description,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-  }
-  Switch(checked=checked,onCheckedChange=onChange,enabled=enabled)
- }
-}
 @Composable
 private fun WordLibrary(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: Modifier,onSelected: ()->Unit) {
  var query by rememberSaveable { mutableStateOf("") }

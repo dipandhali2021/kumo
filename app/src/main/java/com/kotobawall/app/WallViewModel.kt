@@ -12,6 +12,7 @@ class WallViewModel(app: Application): AndroidViewModel(app) {
  private val repo=(app as KotobaApplication).repository
  val words=repo.words
  val settings=repo.settings
+ val cycle=ScreenCycleController.state
  private val _preview=MutableStateFlow<Bitmap?>(null)
  val preview=_preview.asStateFlow()
  private val _previewError=MutableStateFlow("")
@@ -20,9 +21,10 @@ class WallViewModel(app: Application): AndroidViewModel(app) {
  val busy=_busy.asStateFlow()
  val messages=MutableSharedFlow<String>(extraBufferCapacity=8)
  init {
+  ScreenCycleController.initialize(app)
   viewModelScope.launch {
-   // Status-only changes do not need a new bitmap.
-   settings.map { it.copy(lastApplied=0,lastError="",hours=0) }.distinctUntilChanged().collectLatest { s ->
+   // Only background/crop changes need a decoded bitmap. Text is drawn live by Compose.
+   settings.map { it.copy(lastApplied=0,lastError="",hours=0,wordIndex=0,scale=1f,position=0.65f,panel=0.4f,showReading=true,showMeaning=true) }.distinctUntilChanged().collectLatest { s ->
     delay(180)
     try { _previewError.value=""; _preview.value=repo.preview(s) }
     catch(e: CancellationException) { throw e }
@@ -55,7 +57,14 @@ class WallViewModel(app: Application): AndroidViewModel(app) {
  fun next()=edit { it.copy(wordIndex=WallMath.nextIndex(it.wordIndex,words.size)) }
  fun apply()=operation("Lock-screen wallpaper updated") { repo.apply() }
  fun export(uri: Uri)=operation("Wallpaper PNG saved") { repo.export(uri) }
+ fun startCycle()=operation("Screen-off updates started. Turn your screen off, wait a moment, then wake it.") {
+  repo.edit { it.copy(hours=0,lastError="") }
+  RotationSchedule.set(getApplication(),0)
+  ScreenCycleController.start(getApplication())
+ }
+ fun stopCycle() { ScreenCycleController.stop(getApplication()) }
  fun schedule(hours: Int)=operation(if(hours==0) "Automatic updates paused" else "Automatic updates enabled") {
+  ScreenCycleController.stop(getApplication())
   repo.edit { it.copy(hours=hours,lastError="") }
   RotationSchedule.set(getApplication(),hours)
  }

@@ -20,7 +20,7 @@ class WallpaperRenderer(private val context: Context) {
    "Ink" to intArrayOf(Color.rgb(51,56,72), Color.rgb(15,17,24))
   )
  }
- fun render(s: WallSettings, word: Word, width: Int, height: Int): Bitmap {
+ fun render(s: WallSettings, word: Word, width: Int, height: Int, includeText: Boolean = true): Bitmap {
   require(width in 1..2160 && height in 1..4800)
   val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
   try {
@@ -41,7 +41,7 @@ class WallpaperRenderer(private val context: Context) {
      canvas.drawBitmap(photo,matrix,Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
     } finally { photo.recycle() }
    }
-   drawText(canvas,s,word,width,height)
+   if (includeText) drawText(canvas,s,word,width,height)
    return bitmap
   } catch(e: Exception) { bitmap.recycle(); throw e }
  }
@@ -72,7 +72,7 @@ class WallpaperRenderer(private val context: Context) {
    Bitmap.createBitmap(raw,0,0,raw.width,raw.height,m,true).also { if(it !== raw) raw.recycle() }
   } catch(e: Exception) { raw.recycle(); throw e }
  }
- private fun drawText(canvas: Canvas,s: WallSettings,word: Word,width: Int,height: Int) {
+ fun drawText(canvas: Canvas,s: WallSettings,word: Word,width: Int,height: Int) {
   val unit = width/360f
   val margin = 22f*unit; val padding = 20f*unit
   val textWidth = (width-2*(margin+padding)).toInt().coerceAtLeast(1)
