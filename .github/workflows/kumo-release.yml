@@ -14,66 +14,172 @@ jobs:
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 35
-    env:
-      KUMO_KEYSTORE_PATH: ${{ runner.temp }}/kumo-release.jks
+
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+
       - name: Set up Android
         uses: android-actions/setup-android@v3
+
       - name: Install Android SDK
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+        run: |
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
+
       - name: Restore production signing key
         env:
           KUMO_KEYSTORE_BASE64: ${{ secrets.KUMO_KEYSTORE_BASE64 }}
           KUMO_KEYSTORE_PASSWORD: ${{ secrets.KUMO_KEYSTORE_PASSWORD }}
           KUMO_KEY_ALIAS: ${{ secrets.KUMO_KEY_ALIAS }}
           KUMO_KEY_PASSWORD: ${{ secrets.KUMO_KEY_PASSWORD }}
+          KUMO_KEYSTORE_PATH: ${{ runner.temp }}/kumo-release.jks
         shell: bash
         run: |
           python3 - <<'PY'
-          import os, base64
-          required = ['KUMO_KEYSTORE_BASE64', 'KUMO_KEYSTORE_PASSWORD', 'KUMO_KEY_ALIAS', 'KUMO_KEY_PASSWORD']
-          missing = [name for name in required if not os.environ.get(name)]
+          import os
+          import base64
+
+          required = [
+              'KUMO_KEYSTORE_BASE64',
+              'KUMO_KEYSTORE_PASSWORD',
+              'KUMO_KEY_ALIAS',
+              'KUMO_KEY_PASSWORD'
+          ]
+
+          missing = [
+              name for name in required
+              if not os.environ.get(name)
+          ]
+
           if missing:
-              raise SystemExit('Add repository Actions secrets first: ' + ', '.join(missing))
+              raise SystemExit(
+                  'Add repository Actions secrets first: '
+                  + ', '.join(missing)
+              )
+
           try:
-              data = base64.b64decode(''.join(os.environ['KUMO_KEYSTORE_BASE64'].split()), validate=True)
+              data = base64.b64decode(
+                  ''.join(
+                      os.environ['KUMO_KEYSTORE_BASE64'].split()
+                  ),
+                  validate=True
+              )
           except Exception:
-              raise SystemExit('KUMO_KEYSTORE_BASE64 is invalid. Re-encode the keystore file.')
+              raise SystemExit(
+                  'KUMO_KEYSTORE_BASE64 is invalid. '
+                  'Re-encode the keystore file.'
+              )
+
           if not data or len(data) > 1048576:
-              raise SystemExit('Unexpected keystore file size.')
+              raise SystemExit(
+                  'Unexpected keystore file size.'
+              )
+
           path = os.environ['KUMO_KEYSTORE_PATH']
-          with open(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), 'wb') as output:
-              output.write(data)
+
+          fd = os.open(
+              path,
+              os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
+              0o600
+          )
+
+          try:
+              with os.fdopen(fd, 'wb') as output:
+                  output.write(data)
+          except Exception:
+              os.close(fd)
+              raise
           PY
+
+      - name: Verify signing key exists
+        env:
+          KUMO_KEYSTORE_PATH: ${{ runner.temp }}/kumo-release.jks
+        shell: bash
+        run: |
+          if [ ! -f "$KUMO_KEYSTORE_PATH" ]; then
+            echo "Signing keystore was not created."
+            exit 1
+          fi
+
+          ls -lh "$KUMO_KEYSTORE_PATH"
+
       - name: Test, lint and build signed APK and app bundle
         env:
+          KUMO_KEYSTORE_PATH: ${{ runner.temp }}/kumo-release.jks
           KUMO_KEYSTORE_PASSWORD: ${{ secrets.KUMO_KEYSTORE_PASSWORD }}
           KUMO_KEY_ALIAS: ${{ secrets.KUMO_KEY_ALIAS }}
           KUMO_KEY_PASSWORD: ${{ secrets.KUMO_KEY_PASSWORD }}
-        run: gradle --no-daemon :app:testReleaseUnitTest :app:lintRelease :app:assembleRelease :app:bundleRelease :app:assembleDebug
+        shell: bash
+        run: |
+          gradle --no-daemon \
+            :app:testReleaseUnitTest \
+            :app:lintRelease \
+            :app:assembleRelease \
+            :app:bundleRelease \
+            :app:assembleDebug
+
       - name: Verify signatures and stage downloads
         shell: bash
         run: |
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
-          jarsigner -verify app/build/outputs/bundle/release/app-release.aab
+          set -e
+
+          APK="app/build/outputs/apk/release/app-release.apk"
+          AAB="app/build/outputs/bundle/release/app-release.aab"
+          MAPPING="app/build/outputs/mapping/release/mapping.txt"
+
+          echo "Verifying APK signature..."
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" \
+            verify \
+            --verbose \
+            "$APK"
+
+          echo "Verifying AAB signature..."
+          jarsigner -verify "$AAB"
+
+          echo "Creating release artifacts directory..."
           mkdir -p release-artifacts
-          cp app/build/outputs/apk/release/app-release.apk release-artifacts/Kumo-release.apk
-          cp app/build/outputs/bundle/release/app-release.aab release-artifacts/Kumo-release.aab
-          cp app/build/outputs/mapping/release/mapping.txt release-artifacts/mapping.txt
-          python3 tools/apk_size_report.py > release-artifacts/apk-size-report.md
-          cat release-artifacts/apk-size-report.md >> "$GITHUB_STEP_SUMMARY"
-          (cd release-artifacts && sha256sum Kumo-release.apk Kumo-release.aab > SHA256SUMS.txt)
+
+          cp "$APK" \
+            release-artifacts/Kumo-release.apk
+
+          cp "$AAB" \
+            release-artifacts/Kumo-release.aab
+
+          if [ -f "$MAPPING" ]; then
+            cp "$MAPPING" \
+              release-artifacts/mapping.txt
+          fi
+
+          echo "Generating APK size report..."
+          python3 tools/apk_size_report.py \
+            > release-artifacts/apk-size-report.md
+
+          cat release-artifacts/apk-size-report.md \
+            >> "$GITHUB_STEP_SUMMARY"
+
+          echo "Generating SHA256 checksums..."
+          (
+            cd release-artifacts
+            sha256sum \
+              Kumo-release.apk \
+              Kumo-release.aab \
+              > SHA256SUMS.txt
+          )
+
+          echo "Release artifacts:"
+          ls -lh release-artifacts/
+
       - name: Upload production downloads
         uses: actions/upload-artifact@v4
         with:
@@ -81,7 +187,9 @@ jobs:
           path: release-artifacts/
           if-no-files-found: error
           retention-days: 14
+
       - name: Remove temporary signing key
         if: always()
         shell: bash
-        run: rm -f "$KUMO_KEYSTORE_PATH"
+        run: |
+          rm -f "$RUNNER_TEMP/kumo-release.jks"
