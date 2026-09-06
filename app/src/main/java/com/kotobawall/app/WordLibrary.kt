@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -45,7 +43,7 @@ fun WordLibrary(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: Modifi
    LibrarySwitch("Shuffle wallpaper rotation",s.shuffle,!busy) {v->vm.edit {it.copy(shuffle=v)}}
    Text("${pool.size} eligible words · searches only filter this list, not wallpaper rotation.",style=MaterialTheme.typography.bodySmall)
    Button(onClick={vm.downloadLevels()},enabled=!download.running && s.levels.isNotEmpty(),modifier=Modifier.fillMaxWidth()) {
-    Icon(Icons.Outlined.Download,null);Spacer(Modifier.width(8.dp));Text(if(download.running) "Downloading…" else "Download / refresh selected levels")
+    Icon(AppIcons.Download,null);Spacer(Modifier.width(8.dp));Text(if(download.running) "Downloading…" else "Download / refresh selected levels")
    }
    if(download.running) LinearProgressIndicator(Modifier.fillMaxWidth())
    if(download.message.isNotBlank()) Text(download.message,style=MaterialTheme.typography.bodyMedium)
@@ -58,8 +56,8 @@ fun WordLibrary(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: Modifi
   }}}
   item {
    OutlinedTextField(value=query,onValueChange={query=it.take(120)},singleLine=true,label={Text("Search Japanese, kana or meaning")},
-    leadingIcon={Icon(Icons.Outlined.Search,null)},modifier=Modifier.fillMaxWidth(),
-    trailingIcon={if(query.isNotEmpty()) IconButton(onClick={query=""}) {Icon(Icons.Outlined.Close,"Clear search")}})
+    leadingIcon={Icon(AppIcons.Search,null)},modifier=Modifier.fillMaxWidth(),
+    trailingIcon={if(query.isNotEmpty()) IconButton(onClick={query=""}) {Icon(AppIcons.Close,"Clear search")}})
    Spacer(Modifier.height(8.dp));Text("${matches.size} results · tap a word to preview",style=MaterialTheme.typography.bodySmall)
   }
   if(matches.isEmpty()) item {
@@ -76,10 +74,10 @@ fun WordLibrary(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: Modifi
      }
      Column(horizontalAlignment=Alignment.CenterHorizontally) {
       IconButton(onClick={vm.edit {it.copy(favorites=if(w.id in it.favorites) it.favorites-w.id else it.favorites+w.id)}},enabled=!busy) {
-       Icon(if(w.id in s.favorites) Icons.Outlined.Star else Icons.Outlined.StarBorder,
+       Icon(if(w.id in s.favorites) AppIcons.Star else AppIcons.StarBorder,
         if(w.id in s.favorites) "Remove favorite" else "Add favorite",tint=MaterialTheme.colorScheme.primary)
       }
-      if(library.getOrNull(s.wordIndex)?.id==w.id) Icon(Icons.Outlined.CheckCircle,"Selected",tint=MaterialTheme.colorScheme.primary)
+      if(library.getOrNull(s.wordIndex)?.id==w.id) Icon(AppIcons.CheckCircle,"Selected",tint=MaterialTheme.colorScheme.primary)
      }
     }
    }

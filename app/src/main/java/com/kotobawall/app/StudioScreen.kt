@@ -10,8 +10,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -55,8 +53,8 @@ fun StudioScreen(vm: WallViewModel,s: WallSettings,bitmap: Bitmap?,error: String
   Column(paneModifier.padding(horizontal=16.dp,vertical=4.dp)) {
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
     Text("Live preview",style=MaterialTheme.typography.titleMedium,modifier=Modifier.weight(1f))
-    IconButton(onClick={expanded=true}) {Icon(Icons.Outlined.OpenInFull,"Expand wallpaper preview")}
-    IconButton(onClick={vm.next()},enabled=!busy) {Icon(Icons.Outlined.NavigateNext,"Preview next word")}
+    IconButton(onClick={expanded=true}) {Icon(AppIcons.OpenInFull,"Expand wallpaper preview")}
+    IconButton(onClick={vm.next()},enabled=!busy) {Icon(AppIcons.NavigateNext,"Preview next word")}
    }
    WallpaperPreview(bitmap,live,word,error,clockGuide,Modifier.fillMaxWidth().weight(1f))
   }
@@ -83,7 +81,7 @@ fun StudioScreen(vm: WallViewModel,s: WallSettings,bitmap: Bitmap?,error: String
    }
    item {
     OutlinedButton(onClick=export,enabled=!busy && bitmap!=null && hasWords && !dirty,modifier=Modifier.fillMaxWidth()) {
-     Icon(Icons.Outlined.Download,null);Spacer(Modifier.width(8.dp));Text(if(dirty) "Save line layout before export" else "Export wallpaper PNG")
+     Icon(AppIcons.Download,null);Spacer(Modifier.width(8.dp));Text(if(dirty) "Save line layout before export" else "Export wallpaper PNG")
     }
     Text("Position, overall size and panel save on release. Save the line layout separately to use it in automatic updates.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
    }
@@ -99,7 +97,7 @@ fun StudioScreen(vm: WallViewModel,s: WallSettings,bitmap: Bitmap?,error: String
   }
   Surface(tonalElevation=2.dp) {
    Button(onClick={vm.apply(typography)},enabled=!busy && bitmap!=null && hasWords,modifier=Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=8.dp).heightIn(min=48.dp)) {
-    Icon(Icons.Outlined.Lock,null);Spacer(Modifier.width(8.dp));Text(if(busy) "Working…" else if(dirty) "Save & apply to lock screen" else "Apply to lock screen")
+    Icon(AppIcons.Lock,null);Spacer(Modifier.width(8.dp));Text(if(busy) "Working…" else if(dirty) "Save & apply to lock screen" else "Apply to lock screen")
    }
   }
  }
@@ -107,7 +105,7 @@ fun StudioScreen(vm: WallViewModel,s: WallSettings,bitmap: Bitmap?,error: String
   Surface(Modifier.fillMaxSize()) {Column(Modifier.safeDrawingPadding().padding(16.dp)) {
    Row(verticalAlignment=Alignment.CenterVertically) {
     Text("Wallpaper preview",style=MaterialTheme.typography.titleLarge,modifier=Modifier.weight(1f))
-    IconButton(onClick={expanded=false}) {Icon(Icons.Outlined.Close,"Close expanded preview")}
+    IconButton(onClick={expanded=false}) {Icon(AppIcons.Close,"Close expanded preview")}
    }
    WallpaperPreview(bitmap,live,word,error,clockGuide,Modifier.weight(1f).fillMaxWidth())
    LiveSlider("Text position",position,0f..1f,!busy,{position=it}) {vm.edit {it.copy(position=position)}}

@@ -6,6 +6,11 @@ plugins {
  id("org.jetbrains.kotlin.android")
  id("org.jetbrains.kotlin.plugin.compose")
 }
+val releaseStorePath=providers.environmentVariable("KUMO_KEYSTORE_PATH").orNull
+val releaseStorePassword=providers.environmentVariable("KUMO_KEYSTORE_PASSWORD").orNull
+val releaseKeyAlias=providers.environmentVariable("KUMO_KEY_ALIAS").orNull
+val releaseKeyPassword=providers.environmentVariable("KUMO_KEY_PASSWORD").orNull
+
 android {
  namespace = "com.kotobawall.app"
  compileSdk = 35
@@ -13,12 +18,22 @@ android {
   applicationId = "com.kotobawall.app"
   minSdk = 24
   targetSdk = 35
-  versionCode = 6
-  versionName = "1.5.0"
+  versionCode = 7
+  versionName = "1.6.0"
   testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+ }
+ signingConfigs {
+  create("production") {
+   storeFile = releaseStorePath?.let { file(it) }
+   storePassword = releaseStorePassword
+   keyAlias = releaseKeyAlias
+   keyPassword = releaseKeyPassword
+  }
  }
  buildTypes {
   release {
+   isDebuggable = false
+   signingConfig = signingConfigs.getByName("production")
    isMinifyEnabled = true
    isShrinkResources = true
    proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -38,7 +53,6 @@ dependencies {
  implementation("io.coil-kt:coil-compose:2.7.0")
  implementation("androidx.compose.ui:ui-tooling-preview")
  implementation("androidx.compose.material3:material3")
- implementation("androidx.compose.material:material-icons-extended")
  debugImplementation("androidx.compose.ui:ui-tooling")
  implementation("androidx.activity:activity-compose:1.10.1")
  implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
@@ -52,7 +66,6 @@ dependencies {
  androidTestImplementation("androidx.test.ext:junit:1.2.1")
  androidTestImplementation("androidx.test:runner:1.6.2")
 }
-
 val prepareJapaneseFonts by tasks.registering {
  val output=layout.buildDirectory.dir("generated/japaneseAssets/fonts")
  val revision="5e35378e6bda803962ee6fd257e444a7d459660d"
@@ -89,4 +102,18 @@ val prepareJapaneseFonts by tasks.registering {
 tasks.named("preBuild").configure {dependsOn(prepareJapaneseFonts)}
 tasks.configureEach {
  if(name.startsWith("merge") && name.endsWith("Assets")) dependsOn(prepareJapaneseFonts)
+}
+// Never produce a supposedly production APK with debug or missing signing keys.
+val checkProductionSigning by tasks.registering {
+ doLast {
+  check(!releaseStorePath.isNullOrBlank() && file(releaseStorePath!!).isFile &&
+   !releaseStorePassword.isNullOrBlank() && !releaseKeyAlias.isNullOrBlank() && !releaseKeyPassword.isNullOrBlank()) {
+   "Production signing is not configured. Follow docs/PRODUCTION_RELEASE.md; debug builds remain available."
+  }
+ }
+}
+tasks.configureEach {
+ if(name in setOf("assembleRelease","bundleRelease","packageRelease","packageReleaseBundle","signReleaseBundle","validateSigningRelease")) {
+  dependsOn(checkProductionSigning)
+ }
 }

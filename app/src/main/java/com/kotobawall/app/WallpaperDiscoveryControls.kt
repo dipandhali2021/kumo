@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -41,7 +39,7 @@ fun WallpaperDiscoveryControls(browser: WallpaperBrowserViewModel,s: WallpaperBr
    if(key.error.isNotBlank()) Text(key.error,color=MaterialTheme.colorScheme.error)
    OutlinedTextField(value=search,onValueChange={search=it.take(100)},label={Text("Search backgrounds")},
     placeholder={Text("Try a style, subject or mood")},singleLine=true,modifier=Modifier.fillMaxWidth(),
-    leadingIcon={Icon(Icons.Outlined.Search,null)},keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),
+    leadingIcon={Icon(AppIcons.Search,null)},keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),
     keyboardActions=KeyboardActions(onSearch={if(canSearch) browser.search(search)}))
    Button(onClick={browser.search(search)},enabled=canSearch,modifier=Modifier.fillMaxWidth()) {Text(if(search.isBlank()) "Browse Featured" else "Search")}
    Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {

@@ -3,8 +3,6 @@ package com.kotobawall.app
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -69,7 +67,6 @@ fun TypographyEditor(value: Typography,enabled: Boolean,dirty: Boolean,onChange:
   TextButton(onClick={onChange(Typography())},enabled=enabled) {Text("Reset line layout")}
  }
 }
-
 @Composable
 private fun ChoiceMenu(label: String,selected: String,options: List<String>,enabled: Boolean,onSelect: (String)->Unit) {
  var open by remember {mutableStateOf(false)}
@@ -77,7 +74,7 @@ private fun ChoiceMenu(label: String,selected: String,options: List<String>,enab
   Text(label,style=MaterialTheme.typography.labelLarge)
   Box {
    OutlinedButton(onClick={open=true},enabled=enabled,modifier=Modifier.fillMaxWidth()) {
-    Text(selected,Modifier.weight(1f));Icon(Icons.Outlined.ArrowDropDown,null)
+    Text(selected,Modifier.weight(1f));Icon(AppIcons.ArrowDropDown,null)
    }
    DropdownMenu(expanded=open,onDismissRequest={open=false}) {
     options.forEach {option -> DropdownMenuItem(text={Text(option)},onClick={onSelect(option);open=false})}

@@ -16,8 +16,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -69,30 +67,30 @@ fun KotobaApp(vm: WallViewModel=viewModel()) {
  LaunchedEffect(vm) {vm.messages.collect {snackbar.showSnackbar(it)}}
  Scaffold(
   topBar={TopAppBar(title={Column {
-   Text("Kotoba Wall",fontWeight=FontWeight.SemiBold)
+   Text("Kumo",fontWeight=FontWeight.SemiBold)
    Text("A little Japanese, every day",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
-  }},actions={IconButton(onClick={showAbout=true}) {Icon(Icons.Outlined.Info,"About this app")}})},
+  }},actions={IconButton(onClick={showAbout=true}) {Icon(AppIcons.Info,"About this app")}})},
   snackbarHost={SnackbarHost(snackbar)},
   bottomBar={NavigationBar {
-   listOf("Studio" to Icons.Outlined.Wallpaper,"Words" to Icons.Outlined.MenuBook,"Wallpapers" to Icons.Outlined.PhotoLibrary,"Schedule" to Icons.Outlined.Schedule).forEachIndexed {index,item ->
+   listOf("Studio" to AppIcons.Wallpaper,"Words" to AppIcons.MenuBook,"Wallpapers" to AppIcons.PhotoLibrary,"Schedule" to AppIcons.Schedule).forEachIndexed {index,item ->
     NavigationBarItem(selected=tab==index,onClick={tab=index},icon={Icon(item.second,null)},label={Text(item.first)})
    }
   }}
  ) {padding ->
   when(tab) {
-   0 -> StudioScreen(vm,s,preview,previewError,busy,Modifier.padding(padding),export={exporter.launch("kotoba-wallpaper.png")})
+   0 -> StudioScreen(vm,s,preview,previewError,busy,Modifier.padding(padding),export={exporter.launch("kumo-wallpaper.png")})
    1 -> WordLibrary(vm,s,busy,Modifier.padding(padding)) {tab=0}
    2 -> WallpapersScreen(vm,s,busy,Modifier.padding(padding),pick={picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))},onSelected={tab=0})
    3 -> LazyColumn(Modifier.fillMaxSize().padding(padding),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
     item {
-     Icon(Icons.Outlined.AutoAwesome,null,tint=MaterialTheme.colorScheme.primary,modifier=Modifier.size(36.dp));Spacer(Modifier.height(16.dp))
+     Icon(AppIcons.AutoAwesome,null,tint=MaterialTheme.colorScheme.primary,modifier=Modifier.size(36.dp));Spacer(Modifier.height(16.dp))
      Text(if(s.rotateWallpaper) "A new background.\nA new word." else "Same background.\nA new word.",style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.SemiBold)
      Spacer(Modifier.height(12.dp))
      Text("Automatically render the next vocabulary card and update your lock screen. Rendering happens on your device using your saved vocabulary.",style=MaterialTheme.typography.bodyLarge)
     }
     item {Card {Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
      Row(verticalAlignment=Alignment.CenterVertically) {
-      Icon(Icons.Outlined.PhonelinkLock,null,tint=MaterialTheme.colorScheme.primary);Spacer(Modifier.width(12.dp))
+      Icon(AppIcons.PhonelinkLock,null,tint=MaterialTheme.colorScheme.primary);Spacer(Modifier.width(12.dp))
       Text("New word on screen-off",style=MaterialTheme.typography.titleMedium,modifier=Modifier.weight(1f))
      }
      Text("Prepare the next word on screen-off. Keep your chosen background, or rotate your saved collection using the setting in Wallpapers.")
@@ -126,7 +124,7 @@ fun KotobaApp(vm: WallViewModel=viewModel()) {
   }
  }
  if(confirmCycle) AlertDialog(onDismissRequest={confirmCycle=false},title={Text("Enable screen-off updates?")},
-  text={Text("Kotoba Wall will keep a service active with an ongoing notification and a Stop control. It updates your lock-screen image after screen-off events. Android can delay or stop it; it is not guaranteed on every wake. Enabling this turns off timed rotation.")},
+  text={Text("Kumo will keep a service active with an ongoing notification and a Stop control. It updates your lock-screen image after screen-off events. Android can delay or stop it; it is not guaranteed on every wake. Enabling this turns off timed rotation.")},
   confirmButton={TextButton(onClick={confirmCycle=false
    if(Build.VERSION.SDK_INT>=33 && ContextCompat.checkSelfPermission(context,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
    else vm.startCycle()
@@ -138,10 +136,10 @@ fun KotobaApp(vm: WallViewModel=viewModel()) {
   val licenses by produceState("") {value=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
    listOf("gothic_OFL.txt","mincho_OFL.txt").joinToString("\n\n") {name ->context.assets.open("fonts/$name").bufferedReader().use {it.readText()}}
   }}
-  AlertDialog(onDismissRequest={showAbout=false},title={Text("Kotoba Wall 1.5")},text={Column(Modifier.heightIn(max=380.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+  AlertDialog(onDismissRequest={showAbout=false},title={Text("Kumo 1.6 · 雲")},text={Column(Modifier.heightIn(max=380.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
    Text("50 offline starter entries, plus optional JLPT N5–N1 downloads. No account or analytics. Your photos and settings are not uploaded. The vocabulary provider receives your IP address and requested level when you download.")
    Text("Vocabulary: wkei / JLPT Vocabulary API, based on Jonathan Waller’s Tanos study lists. Levels are estimates, not an official JLPT syllabus. Readings and meanings may contain errors.")
-   Text("Japanese fonts: Zen Kaku Gothic New and Zen Old Mincho, bundled under SIL Open Font License 1.1. Material Icons: Google, Apache 2.0.")
+   Text("Japanese fonts: Zen Kaku Gothic New and Zen Old Mincho, bundled under SIL Open Font License 1.1. Interface icons: original compact Kumo vector set.")
    Text("Online photos: Pexels (default) and Unsplash via Lorem Picsum. Pexels receives your search terms and API key. Browsing and saving contact the provider and CDN. Keys are entered on-device and encrypted with Android Keystore, not bundled in the APK. Saved backgrounds and Last used stay in private app storage. Coil image loader: Apache 2.0.")
    Text(licenses,style=MaterialTheme.typography.bodySmall)
   }},confirmButton={TextButton(onClick={showAbout=false}) {Text("Close")}})
