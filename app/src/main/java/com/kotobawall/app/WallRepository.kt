@@ -1,10 +1,6 @@
 package com.kotobawall.app
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.ParcelFileDescriptor
-import androidx.core.content.ContextCompat
 import android.app.Application
 import android.app.WallpaperManager
 import android.content.Context
@@ -127,12 +123,8 @@ class WallRepository(private val context: Context) {
   if(last!=null && last.wallpaperId>0 && manager.getWallpaperId(WallpaperManager.FLAG_LOCK)==last.wallpaperId) {
    restoreLast();return@withLock
   }
-  check(Build.VERSION.SDK_INT<33) {"Android 13+ blocks normal access to another app’s current wallpaper. Choose the original image with Photo Picker, or reuse Last used."}
-  if(ContextCompat.checkSelfPermission(context,Manifest.permission.READ_EXTERNAL_STORAGE)!=PackageManager.PERMISSION_GRANTED) {
-   throw SecurityException("Storage permission is needed on Android 12 and earlier to import the current wallpaper. Photo Picker works without it.")
-  }
   try {
-   val descriptor=manager.getWallpaperFile(WallpaperManager.FLAG_LOCK) ?: manager.getWallpaperFile(WallpaperManager.FLAG_SYSTEM)
+   val descriptor=LegacyWallpaperReader.open(context)
     ?: error("No readable static wallpaper. Choose its original image instead.")
    val entry=ParcelFileDescriptor.AutoCloseInputStream(descriptor).use {wallpapers.add(it,"Imported lock-screen wallpaper")}
    val old=mutable.value.photo
