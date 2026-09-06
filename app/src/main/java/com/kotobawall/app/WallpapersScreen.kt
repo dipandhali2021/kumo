@@ -6,12 +6,16 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -26,9 +30,13 @@ import java.io.File
 
 @Composable
 fun WallpapersScreen(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: Modifier,pick: ()->Unit,onSelected: ()->Unit) {
+ var section by rememberSaveable {mutableStateOf("Discover")}
  val saved by vm.savedWallpapers.collectAsStateWithLifecycle()
  val last by vm.lastWallpaper.collectAsStateWithLifecycle()
- val catalog by vm.catalog.collectAsStateWithLifecycle()
+ val browser: WallpaperBrowserViewModel=viewModel()
+ val catalog by browser.state.collectAsStateWithLifecycle()
+ LaunchedEffect(browser) {browser.open()}
+ var cropY by remember(s.cropY) {mutableFloatStateOf(s.cropY)}
  val context=LocalContext.current
  val uri=LocalUriHandler.current
  var deleting by remember {mutableStateOf<SavedWallpaper?>(null)}
@@ -40,13 +48,42 @@ fun WallpapersScreen(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: M
   horizontalArrangement=Arrangement.spacedBy(12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
   item(span={GridItemSpan(maxLineSpan)}) {
    Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
-    Text("Your backgrounds",style=MaterialTheme.typography.headlineSmall)
-    Text("Use your own image, import a readable lock-screen background, or choose a free online photo. Preview before applying.")
-    OutlinedButton(onClick={explainImport=true},enabled=!busy,modifier=Modifier.fillMaxWidth()) {Text("Import current lock-screen wallpaper")}
-    Button(onClick=pick,enabled=!busy,modifier=Modifier.fillMaxWidth()) {Text("Choose original photo")}
-    Text("Android 13+ blocks normal access to wallpapers set by other apps. A matching background previously applied by Kotoba Wall can be restored without reading the system image.",style=MaterialTheme.typography.bodySmall)
+    Text("Wallpapers",style=MaterialTheme.typography.headlineSmall)
+    Text("Backgrounds for your Japanese word cards.",style=MaterialTheme.typography.bodyMedium)
+    Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+     listOf("Discover","Saved","My background").forEach {name ->
+      FilterChip(selected=section==name,onClick={section=name},label={Text(name)})
+     }
+    }
    }
   }
+  if(section=="Discover") {
+  item(span={GridItemSpan(maxLineSpan)}) {
+   Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+    WallpaperDiscoveryControls(browser,catalog)
+    if(busy) Text("Working… your saved collection stays available offline.")
+   }
+  }
+  items(catalog.items,key={"online:"+it.id}) {photo ->
+   OutlinedCard {
+    WallpaperThumbnail(model=photo.thumbnail,contentDescription=photo.description.ifBlank {"Photo by ${photo.author}"},contentScale=ContentScale.Crop,modifier=Modifier.fillMaxWidth().aspectRatio(0.7f))
+    Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
+     Text(photo.author,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodyMedium)
+     Button(onClick={vm.saveOnlineWallpaper(photo,onSelected)},enabled=!busy && saved.size<12,modifier=Modifier.fillMaxWidth()) {Text("Save & preview")}
+     if(photo.provider==WallpaperProvider.PEXELS) TextButton(onClick={uri.openUri(photo.photographerUrl.ifBlank {photo.sourceUrl})}) {Text("Photographer")}
+     TextButton(onClick={uri.openUri(photo.sourceUrl)}) {Text(if(photo.provider==WallpaperProvider.PEXELS) "View on Pexels" else "Photo source")}
+    }
+   }
+  }
+  if(catalog.loaded) item(span={GridItemSpan(maxLineSpan)}) {
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
+    TextButton(onClick={browser.load(catalog.page-1)},enabled=!catalog.loading && catalog.page>1) {Text("Previous")}
+    Text("Page ${catalog.page}")
+    TextButton(onClick={browser.load(catalog.page+1)},enabled=!catalog.loading && catalog.hasNext) {Text("Next")}
+   }
+  }
+  }
+  if(section=="Saved") {
   item(span={GridItemSpan(maxLineSpan)}) {OutlinedCard {Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
    Text("When the screen turns off",style=MaterialTheme.typography.titleMedium)
    listOf(false to "Keep chosen wallpaper static",true to "Rotate saved wallpapers + words").forEach {(rotate,label) ->
@@ -68,7 +105,9 @@ fun WallpapersScreen(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: M
     OutlinedButton(onClick={vm.useLastWallpaper(onSelected)},enabled=!busy,modifier=Modifier.fillMaxWidth()) {Text("Use last background")}
    }
   }}}
-  item(span={GridItemSpan(maxLineSpan)}) {Text("Saved collection · ${saved.size}/12",style=MaterialTheme.typography.titleMedium)}
+  item(span={GridItemSpan(maxLineSpan)}) {
+   Text("Saved collection · ${saved.size}/12",style=MaterialTheme.typography.titleMedium)
+  }
   if(saved.isEmpty()) item(span={GridItemSpan(maxLineSpan)}) {Text("Choose a photo or save an online image to start your collection.")}
   items(saved,key={"saved:"+it.file}) {entry ->
    OutlinedCard {
@@ -84,32 +123,32 @@ fun WallpapersScreen(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: M
     }
    }
   }
+  }
+  if(section=="My background") {
   item(span={GridItemSpan(maxLineSpan)}) {
    Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
-    HorizontalDivider();Text("Discover free photos",style=MaterialTheme.typography.titleLarge)
-    Text("Photos from Lorem Picsum / Unsplash. Browsing and saving need internet. The provider/CDN receives normal network metadata; your own photos are never uploaded.",style=MaterialTheme.typography.bodySmall)
-    Button(onClick={vm.browseWallpapers(catalog.page)},enabled=!catalog.loading,modifier=Modifier.fillMaxWidth()) {Text(if(catalog.loading) "Loading photos…" else if(catalog.items.isEmpty()) "Browse online photos" else "Refresh this page")}
-    if(catalog.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-    if(catalog.error.isNotBlank()) Text(catalog.error,color=MaterialTheme.colorScheme.error)
-    if(busy) Text("Working… your saved collection stays available offline.")
+    Text("Your backgrounds",style=MaterialTheme.typography.headlineSmall)
+    Text("Use your own image, import a readable lock-screen background, or choose a free online photo. Preview before applying.")
+    OutlinedButton(onClick={explainImport=true},enabled=!busy,modifier=Modifier.fillMaxWidth()) {Text("Import current lock-screen wallpaper")}
+    Button(onClick=pick,enabled=!busy,modifier=Modifier.fillMaxWidth()) {Text("Choose original photo")}
+    Text("Android 13+ blocks normal access to wallpapers set by other apps. A matching background previously applied by Kotoba Wall can be restored without reading the system image.",style=MaterialTheme.typography.bodySmall)
    }
   }
-  items(catalog.items,key={"online:"+it.id}) {photo ->
-   OutlinedCard {
-    WallpaperThumbnail(model=photo.thumbnail,contentDescription="Photo by ${photo.author}",contentScale=ContentScale.Crop,modifier=Modifier.fillMaxWidth().aspectRatio(0.7f))
-    Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
-     Text(photo.author,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodyMedium)
-     Button(onClick={vm.saveOnlineWallpaper(photo,onSelected)},enabled=!busy && saved.size<12,modifier=Modifier.fillMaxWidth()) {Text("Save & preview")}
-     TextButton(onClick={uri.openUri(photo.sourceUrl)}) {Text("Photo source")}
+  item(span={GridItemSpan(maxLineSpan)}) {OutlinedCard {Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+   Text("Background adjustments",style=MaterialTheme.typography.titleMedium)
+   Text("Photo selection, gradients and crop controls now live here. Studio focuses on your vocabulary and text layout.",style=MaterialTheme.typography.bodySmall)
+   Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+    WallpaperRenderer.palettes.keys.forEach {name ->
+     FilterChip(selected=s.photo.isEmpty() && s.background==name,onClick={vm.palette(name)},enabled=!busy,label={Text(name)})
     }
    }
-  }
-  if(catalog.items.isNotEmpty()) item(span={GridItemSpan(maxLineSpan)}) {
-   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
-    TextButton(onClick={vm.browseWallpapers(catalog.page-1)},enabled=!catalog.loading && catalog.page>1) {Text("Previous")}
-    Text("Page ${catalog.page}")
-    TextButton(onClick={vm.browseWallpapers(catalog.page+1)},enabled=!catalog.loading && catalog.page<1000) {Text("Next")}
+   if(s.photo.isNotEmpty()) {
+    Text("Vertical crop · top to bottom")
+    Slider(value=cropY,onValueChange={cropY=it},onValueChangeFinished={vm.edit {it.copy(cropY=cropY)}},valueRange=0f..1f,enabled=!busy)
+    TextButton(onClick={cropY=0.5f;vm.edit {it.copy(cropX=0.5f,cropY=0.5f)}},enabled=!busy) {Text("Center photo")}
    }
+   OutlinedButton(onClick=onSelected,enabled=!busy,modifier=Modifier.fillMaxWidth()) {Text("Open Studio preview")}
+  }}}
   }
   item(span={GridItemSpan(maxLineSpan)}) {Text("Images are cropped—not stretched—to the current display proportions. Foldable screens and manufacturer wallpaper cropping need device testing. Collections are limited to 12 images; app wallpaper storage is bounded.",style=MaterialTheme.typography.bodySmall)}
  }
@@ -125,6 +164,7 @@ fun WallpapersScreen(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: M
   text={Text("This removes it from your offline rotation collection. Your original photo and the separate Last used background are kept.")},
   confirmButton={TextButton(onClick={vm.removeWallpaper(entry.file);deleting=null}) {Text("Remove")}},dismissButton={TextButton(onClick={deleting=null}) {Text("Cancel")}})}
 }
+
 @Composable
 private fun WallpaperThumbnail(model: Any,contentDescription: String,contentScale: ContentScale,modifier: Modifier) {
  SubcomposeAsyncImage(model=model,contentDescription=contentDescription,contentScale=contentScale,modifier=modifier,

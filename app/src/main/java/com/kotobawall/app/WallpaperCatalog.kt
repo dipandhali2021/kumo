@@ -11,9 +11,12 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.roundToInt
 
-data class OnlineWallpaper(val id: String,val author: String,val width: Int,val height: Int,val sourceUrl: String) {
- val thumbnail: String get()="https://picsum.photos/id/$id/360/540.jpg"
+data class OnlineWallpaper(val id: String,val author: String,val width: Int,val height: Int,val sourceUrl: String,
+ val provider: WallpaperProvider=WallpaperProvider.PICSUM,val previewUrl: String="",val downloadUrl: String="",
+ val description: String="",val photographerUrl: String="") {
+ val thumbnail: String get()=if(provider==WallpaperProvider.PEXELS) previewUrl else "https://picsum.photos/id/$id/360/540.jpg"
  val imageUrl: String get() {
+  if(provider==WallpaperProvider.PEXELS) return downloadUrl
   val ratio=minOf(1f,2400f/maxOf(width,height))
   return "https://picsum.photos/id/"+id+"/"+(width*ratio).roundToInt().coerceAtLeast(1)+"/"+(height*ratio).roundToInt().coerceAtLeast(1)+".jpg"
  }
@@ -38,11 +41,11 @@ object WallpaperCatalog {
  private suspend fun read(address: String,limit: Int): ByteArray {
   var url=URL(address)
   repeat(4) {
-   check(url.protocol=="https" && url.host in setOf("picsum.photos","fastly.picsum.photos")) {"Unexpected image host."}
+   check(url.protocol=="https" && url.host in setOf("picsum.photos","fastly.picsum.photos","images.pexels.com") && url.userInfo==null && url.port in listOf(-1,443)) {"Unexpected image host."}
    val c=url.openConnection() as HttpURLConnection
    try {
     c.connectTimeout=15_000;c.readTimeout=20_000;c.instanceFollowRedirects=false
-    c.setRequestProperty("User-Agent","KotobaWall/1.4")
+    c.setRequestProperty("User-Agent","KotobaWall/1.5")
     val code=c.responseCode
     if(code in listOf(301,302,303,307,308)) {
      url=URL(url,c.getHeaderField("Location") ?: throw IOException("Missing image redirect."))

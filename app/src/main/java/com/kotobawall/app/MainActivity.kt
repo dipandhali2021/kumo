@@ -80,7 +80,7 @@ fun KotobaApp(vm: WallViewModel=viewModel()) {
   }}
  ) {padding ->
   when(tab) {
-   0 -> StudioScreen(vm,s,preview,previewError,busy,Modifier.padding(padding),pick={picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))},export={exporter.launch("kotoba-wallpaper.png")})
+   0 -> StudioScreen(vm,s,preview,previewError,busy,Modifier.padding(padding),export={exporter.launch("kotoba-wallpaper.png")})
    1 -> WordLibrary(vm,s,busy,Modifier.padding(padding)) {tab=0}
    2 -> WallpapersScreen(vm,s,busy,Modifier.padding(padding),pick={picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))},onSelected={tab=0})
    3 -> LazyColumn(Modifier.fillMaxSize().padding(padding),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
@@ -138,11 +138,11 @@ fun KotobaApp(vm: WallViewModel=viewModel()) {
   val licenses by produceState("") {value=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
    listOf("gothic_OFL.txt","mincho_OFL.txt").joinToString("\n\n") {name ->context.assets.open("fonts/$name").bufferedReader().use {it.readText()}}
   }}
-  AlertDialog(onDismissRequest={showAbout=false},title={Text("Kotoba Wall 1.4")},text={Column(Modifier.heightIn(max=380.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+  AlertDialog(onDismissRequest={showAbout=false},title={Text("Kotoba Wall 1.5")},text={Column(Modifier.heightIn(max=380.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
    Text("50 offline starter entries, plus optional JLPT N5–N1 downloads. No account or analytics. Your photos and settings are not uploaded. The vocabulary provider receives your IP address and requested level when you download.")
    Text("Vocabulary: wkei / JLPT Vocabulary API, based on Jonathan Waller’s Tanos study lists. Levels are estimates, not an official JLPT syllabus. Readings and meanings may contain errors.")
    Text("Japanese fonts: Zen Kaku Gothic New and Zen Old Mincho, bundled under SIL Open Font License 1.1. Material Icons: Google, Apache 2.0.")
-   Text("Online photos: Lorem Picsum / Unsplash. Browsing and saving contact the provider and CDN. Saved backgrounds and Last used stay in private app storage. Coil image loader: Apache 2.0.")
+   Text("Online photos: Pexels (default) and Unsplash via Lorem Picsum. Pexels receives your search terms and API key. Browsing and saving contact the provider and CDN. Keys are entered on-device and encrypted with Android Keystore, not bundled in the APK. Saved backgrounds and Last used stay in private app storage. Coil image loader: Apache 2.0.")
    Text(licenses,style=MaterialTheme.typography.bodySmall)
   }},confirmButton={TextButton(onClick={showAbout=false}) {Text("Close")}})
  }

@@ -13,8 +13,8 @@ android {
   applicationId = "com.kotobawall.app"
   minSdk = 24
   targetSdk = 35
-  versionCode = 5
-  versionName = "1.4.0"
+  versionCode = 6
+  versionName = "1.5.0"
   testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
  }
  buildTypes {
@@ -52,6 +52,7 @@ dependencies {
  androidTestImplementation("androidx.test.ext:junit:1.2.1")
  androidTestImplementation("androidx.test:runner:1.6.2")
 }
+
 val prepareJapaneseFonts by tasks.registering {
  val output=layout.buildDirectory.dir("generated/japaneseAssets/fonts")
  val revision="5e35378e6bda803962ee6fd257e444a7d459660d"
@@ -63,7 +64,9 @@ val prepareJapaneseFonts by tasks.registering {
   Triple("zenkakugothicnew/OFL.txt","gothic_OFL.txt","c05130c2195586600c9bc245c88a67d1154369a8"),
   Triple("zenoldmincho/OFL.txt","mincho_OFL.txt","665345ba7787f0bfb9c5942e2a02a28b1082aa68")
  )
- inputs.property("revision",revision);inputs.property("files",files.joinToString());outputs.dir(output)
+ inputs.property("revision",revision)
+ inputs.property("files",files.joinToString())
+ outputs.dir(output)
  doLast {
   val directory=output.get().asFile.apply {mkdirs()}
   fun hash(data: ByteArray): String {
@@ -84,4 +87,6 @@ val prepareJapaneseFonts by tasks.registering {
  }
 }
 tasks.named("preBuild").configure {dependsOn(prepareJapaneseFonts)}
-tasks.configureEach {if(name.startsWith("merge") && name.endsWith("Assets")) dependsOn(prepareJapaneseFonts)}
+tasks.configureEach {
+ if(name.startsWith("merge") && name.endsWith("Assets")) dependsOn(prepareJapaneseFonts)
+}

@@ -36,7 +36,7 @@ import kotlin.math.roundToInt
 
 @Composable
 fun StudioScreen(vm: WallViewModel,s: WallSettings,bitmap: Bitmap?,error: String,busy: Boolean,
- modifier: Modifier=Modifier,pick: ()->Unit,export: ()->Unit) {
+ modifier: Modifier=Modifier,export: ()->Unit) {
  val configuration=LocalConfiguration.current
  LaunchedEffect(configuration.screenWidthDp,configuration.screenHeightDp) {vm.refreshPreview()}
  val draft by vm.typographyDraft.collectAsStateWithLifecycle()
@@ -45,7 +45,6 @@ fun StudioScreen(vm: WallViewModel,s: WallSettings,bitmap: Bitmap?,error: String
  var position by remember(s.position) {mutableFloatStateOf(s.position)}
  var scale by remember(s.scale) {mutableFloatStateOf(s.scale)}
  var panel by remember(s.panel) {mutableFloatStateOf(s.panel)}
- var cropY by remember(s.cropY) {mutableFloatStateOf(s.cropY)}
  var expanded by rememberSaveable {mutableStateOf(false)}
  var clockGuide by rememberSaveable {mutableStateOf(true)}
  val live=s.copy(position=position,scale=scale,panel=panel,typography=typography)
@@ -81,20 +80,6 @@ fun StudioScreen(vm: WallViewModel,s: WallSettings,bitmap: Bitmap?,error: String
    item {
     StudioSwitch("Show clock guide",clockGuide,true) {clockGuide=it}
     Text("The clock guide is not saved. Keep room for your phone’s notifications and fingerprint sensor.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-   }
-   item {
-    HorizontalDivider();Spacer(Modifier.height(12.dp));Text("Background",style=MaterialTheme.typography.titleMedium)
-    OutlinedButton(onClick=pick,enabled=!busy,modifier=Modifier.fillMaxWidth()) {
-     Icon(Icons.Outlined.AddPhotoAlternate,null);Spacer(Modifier.width(8.dp));Text(if(s.photo.isEmpty()) "Choose a photo" else "Replace photo")
-    }
-    Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-     WallpaperRenderer.palettes.keys.forEach {name ->FilterChip(selected=s.photo.isEmpty() && s.background==name,onClick={vm.palette(name)},enabled=!busy,label={Text(name)})}
-    }
-    if(s.photo.isNotEmpty()) {
-     Text("Vertical crop updates when you release the slider.",style=MaterialTheme.typography.bodySmall)
-     TextButton(onClick={cropY=0.5f;vm.edit {it.copy(cropX=0.5f,cropY=0.5f)}},enabled=!busy) {Text("Center photo")}
-     LiveSlider("Crop · top to bottom",cropY,0f..1f,!busy,{cropY=it}) {vm.edit {it.copy(cropY=cropY)}}
-    }
    }
    item {
     OutlinedButton(onClick=export,enabled=!busy && bitmap!=null && hasWords && !dirty,modifier=Modifier.fillMaxWidth()) {
