@@ -42,12 +42,13 @@ fun StudioScreen(vm: WallViewModel, s: WallSettings, bitmap: Bitmap?, error: Str
  var position by remember(s.position) { mutableFloatStateOf(s.position) }
  var scale by remember(s.scale) { mutableFloatStateOf(s.scale) }
  var panel by remember(s.panel) { mutableFloatStateOf(s.panel) }
- var cropX by remember(s.cropX) { mutableFloatStateOf(s.cropX) }
  var cropY by remember(s.cropY) { mutableFloatStateOf(s.cropY) }
  var expanded by rememberSaveable { mutableStateOf(false) }
  var clockGuide by rememberSaveable { mutableStateOf(true) }
  val live = s.copy(position=position,scale=scale,panel=panel,typography=typography)
- val word = vm.words[s.wordIndex]
+ val library by vm.words.collectAsStateWithLifecycle()
+ val word = library.getOrElse(s.wordIndex) { library.first() }
+ val hasWords=library.any {WordPolicy.eligible(it,s)}
  val previewPane: @Composable (Modifier)->Unit = { paneModifier ->
   Column(paneModifier.padding(horizontal=16.dp,vertical=4.dp)) {
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
@@ -61,6 +62,7 @@ fun StudioScreen(vm: WallViewModel, s: WallSettings, bitmap: Bitmap?, error: Str
  val controls: @Composable (Modifier)->Unit = { controlsModifier ->
   LazyColumn(controlsModifier,contentPadding=PaddingValues(horizontal=20.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
    item {
+    if(!hasWords) Text("No eligible words. Download a selected JLPT level or adjust filters in Words.",color=MaterialTheme.colorScheme.error)
     Text("Position & style",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold)
     Text("Drag a slider—the preview stays visible.",style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
     Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
@@ -92,16 +94,16 @@ fun StudioScreen(vm: WallViewModel, s: WallSettings, bitmap: Bitmap?, error: Str
      }
     }
     if(s.photo.isNotEmpty()) {
-     Text("Photo crop updates when you release the slider.",style=MaterialTheme.typography.bodySmall)
-     LiveSlider("Crop · left to right",cropX,0f..1f,!busy,{cropX=it}) { vm.edit { it.copy(cropX=cropX) } }
+     Text("Vertical crop updates when you release the slider.",style=MaterialTheme.typography.bodySmall)
+     TextButton(onClick={cropY=0.5f;vm.edit {it.copy(cropX=0.5f,cropY=0.5f)}},enabled=!busy) {Text("Center photo")}
      LiveSlider("Crop · top to bottom",cropY,0f..1f,!busy,{cropY=it}) { vm.edit { it.copy(cropY=cropY) } }
     }
    }
    item {
-    OutlinedButton(onClick=export,enabled=!busy && bitmap!=null && !dirty,modifier=Modifier.fillMaxWidth()) {
+    OutlinedButton(onClick=export,enabled=!busy && bitmap!=null && hasWords && !dirty,modifier=Modifier.fillMaxWidth()) {
      Icon(Icons.Outlined.Download,null); Spacer(Modifier.width(8.dp)); Text(if(dirty) "Save line layout before export" else "Export wallpaper PNG")
     }
-    Text("Settings save when you release a slider. Apply changes now, or let the next automatic update use them.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+    Text("Position, overall size and panel save on release. Save the line layout separately to use it in automatic updates.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
    }
   }
  }
@@ -122,7 +124,7 @@ fun StudioScreen(vm: WallViewModel, s: WallSettings, bitmap: Bitmap?, error: Str
    }
   }
   Surface(tonalElevation=2.dp) {
-   Button(onClick={vm.apply(typography)},enabled=!busy && bitmap!=null,modifier=Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=8.dp).heightIn(min=48.dp)) {
+   Button(onClick={vm.apply(typography)},enabled=!busy && bitmap!=null && hasWords,modifier=Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=8.dp).heightIn(min=48.dp)) {
     Icon(Icons.Outlined.Lock,null); Spacer(Modifier.width(8.dp)); Text(if(busy) "Working…" else if(dirty) "Save & apply to lock screen" else "Apply to lock screen")
    }
   }

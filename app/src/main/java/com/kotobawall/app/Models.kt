@@ -2,14 +2,16 @@ package com.kotobawall.app
 
 import kotlin.math.max
 
-data class Word(val id: String, val written: String, val reading: String, val meaning: String, val category: String)
+data class Word(val id: String, val written: String, val reading: String, val meaning: String, val category: String, val level: Int = 0)
 data class WallSettings(
  val wordIndex: Int = 0, val background: String = "Ocean", val photo: String = "",
  val showReading: Boolean = true, val showMeaning: Boolean = true,
- val scale: Float = 1f, val position: Float = 0.5f, val panel: Float = 0.4f,
+ val scale: Float = 1f, val position: Float = 0.5f, val panel: Float = 0f,
  val cropX: Float = 0.5f, val cropY: Float = 0.5f,
  val hours: Int = 0, val lastApplied: Long = 0L, val lastError: String = "",
- val typography: Typography = Typography()
+ val typography: Typography = Typography(),
+ val levels: Set<Int> = setOf(5), val includeStarter: Boolean = true,
+ val favorites: Set<String> = emptySet(), val favoritesOnly: Boolean = false, val shuffle: Boolean = false
 )
 object WallMath {
  fun nextIndex(current: Int, count: Int): Int {

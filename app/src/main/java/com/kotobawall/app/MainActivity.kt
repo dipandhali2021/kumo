@@ -11,10 +11,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
@@ -91,7 +90,7 @@ fun KotobaApp(vm: WallViewModel=viewModel()) {
   when(tab) {
    0 -> StudioScreen(vm,s,preview,previewError,busy,Modifier.padding(padding),
     pick={picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))},
-    export={exporter.launch("kotoba-${vm.words[s.wordIndex].id}.png")})
+    export={exporter.launch("kotoba-wallpaper.png")})
    1 -> WordLibrary(vm,s,busy,Modifier.padding(padding)) { tab=0 }
    2 -> LazyColumn(Modifier.fillMaxSize().padding(padding),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
     item {
@@ -99,7 +98,7 @@ fun KotobaApp(vm: WallViewModel=viewModel()) {
      Spacer(Modifier.height(16.dp))
      Text("Same background.\nA new word.",style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.SemiBold)
      Spacer(Modifier.height(12.dp))
-     Text("Automatically render the next vocabulary card and update your lock screen. Everything stays on your device.",style=MaterialTheme.typography.bodyLarge)
+     Text("Automatically render the next vocabulary card and update your lock screen. Rendering happens on your device using your saved vocabulary.",style=MaterialTheme.typography.bodyLarge)
     }
     item { Card { Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
      Row(verticalAlignment=Alignment.CenterVertically) {
@@ -159,43 +158,20 @@ fun KotobaApp(vm: WallViewModel=viewModel()) {
   text={Text("Your lock-screen wallpaper will be replaced with the next word approximately every $pendingHours hours. The original background is preserved. You can turn this off at any time.")},
   confirmButton={TextButton(onClick={vm.schedule(pendingHours);pendingHours=0}) {Text("Enable")}},
   dismissButton={TextButton(onClick={pendingHours=0}) {Text("Cancel")}})
- if(showAbout) AlertDialog(onDismissRequest={showAbout=false},title={Text("Kotoba Wall")},
-  text={Text("An offline Japanese vocabulary wallpaper app.\n\n50 starter entries. Readings and meanings are intentionally concise, not a complete dictionary.\n\nKotlin · Jetpack Compose · Material 3\nMaterial Icons by Google (Apache 2.0).\n\nNo account, analytics, network permission, accessibility service or floating overlay.")},
-  confirmButton={TextButton(onClick={showAbout=false}) {Text("Close")}})
-}
-
-@Composable
-private fun WordLibrary(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: Modifier,onSelected: ()->Unit) {
- var query by rememberSaveable { mutableStateOf("") }
- var category by rememberSaveable { mutableStateOf("All") }
- val words=vm.words.withIndex().filter { (_,w) ->
-  (category=="All" || w.category==category) && listOf(w.written,w.reading,w.meaning).any { it.contains(query,ignoreCase=true) }
- }
- LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-  item {
-   Text("Make every glance count",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.SemiBold)
-   Spacer(Modifier.height(12.dp))
-   OutlinedTextField(value=query,onValueChange={query=it},label={Text("Search Japanese or English")},leadingIcon={Icon(Icons.Outlined.Search,null)},singleLine=true,modifier=Modifier.fillMaxWidth())
-   Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-    (listOf("All")+vm.words.map {it.category}.distinct()).forEach { name ->
-     FilterChip(selected=category==name,onClick={category=name},label={Text(name)})
-    }
-   }
-   Text("${words.size} words · tap to use in the studio",style=MaterialTheme.typography.bodySmall)
-  }
-  if(words.isEmpty()) item { Text("No words found. Try a different search or category.",Modifier.padding(vertical=24.dp)) }
-  itemsIndexed(words,key={_,item->item.value.id}) { _,indexed ->
-   val w=indexed.value
-   OutlinedCard(onClick={if(!busy) {vm.edit {it.copy(wordIndex=indexed.index)};onSelected()}},modifier=Modifier.fillMaxWidth()) {
-    Row(Modifier.padding(16.dp),verticalAlignment=Alignment.CenterVertically) {
-     Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
-      Text(w.written,style=MaterialTheme.typography.titleLarge)
-      if(w.reading!=w.written) Text(w.reading,color=MaterialTheme.colorScheme.onSurfaceVariant)
-      Text(w.meaning,style=MaterialTheme.typography.bodyMedium)
-     }
-     if(s.wordIndex==indexed.index) Icon(Icons.Outlined.CheckCircle,"Selected",tint=MaterialTheme.colorScheme.primary)
+ if(showAbout) {
+  val licenses by produceState("") {
+   value=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    listOf("gothic_OFL.txt","mincho_OFL.txt").joinToString("\n\n") {name ->
+     context.assets.open("fonts/$name").bufferedReader().use {it.readText()}
     }
    }
   }
+  AlertDialog(onDismissRequest={showAbout=false},title={Text("Kotoba Wall 1.3")},
+   text={Column(Modifier.heightIn(max=380.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+    Text("50 offline starter entries, plus optional JLPT N5–N1 downloads. No account or analytics. Your photos and settings are not uploaded. The vocabulary provider receives your IP address and requested level when you download.")
+    Text("Vocabulary: wkei / JLPT Vocabulary API, based on Jonathan Waller’s Tanos study lists. Levels are estimates, not an official JLPT syllabus. Readings and meanings may contain errors.")
+    Text("Japanese fonts: Zen Kaku Gothic New and Zen Old Mincho, bundled under SIL Open Font License 1.1. Material Icons: Google, Apache 2.0.")
+    Text(licenses,style=MaterialTheme.typography.bodySmall)
+   }},confirmButton={TextButton(onClick={showAbout=false}) {Text("Close")}})
  }
 }

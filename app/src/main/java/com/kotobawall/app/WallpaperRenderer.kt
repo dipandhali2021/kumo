@@ -84,12 +84,10 @@ class WallpaperRenderer(private val context: Context) {
    val p=TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
     textSize=row.size.coerceIn(12f,60f)*unit*s.scale.coerceIn(0.75f,1.4f)
     color=try {Color.parseColor(row.color)} catch(_: IllegalArgumentException) {Color.WHITE}
-    val family=when(row.font) {"Serif"->"serif";"Monospace"->"monospace";"Rounded"->"sans-serif-rounded";else->"sans-serif"}
-    typeface=Typeface.create(family,if(row.bold) Typeface.BOLD else Typeface.NORMAL)
+    typeface=JapaneseFonts.get(context,row.font,row.bold)
     textLocale=Locale.JAPANESE
     setShadowLayer(2f*unit,0f,unit,Color.BLACK)
    }
-   // One visual line per row. Shrink long strings to a readable floor, then ellipsize.
    val measured=p.measureText(text)
    if(measured>textWidth) p.textSize=(p.textSize*textWidth/measured).coerceAtLeast(12f*unit)
    val alignment=when(if(row.alignment=="Default") t.alignment else row.alignment) {
@@ -102,7 +100,6 @@ class WallpaperRenderer(private val context: Context) {
   }
   val gap=t.spacing.coerceIn(0f,24f)*unit
   val natural=lines.sumOf {it.height}.toFloat()+gap*(lines.size-1)+padding*2
-  // Fit unusually short screens rather than clipping a large custom block.
   val fit=minOf(1f,(height-2*margin).coerceAtLeast(1f)/natural)
   val total=natural*fit
   val top=WallMath.top(height,total,s.position,margin)

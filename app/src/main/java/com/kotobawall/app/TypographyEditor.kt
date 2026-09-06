@@ -64,7 +64,7 @@ fun TypographyEditor(value: Typography,enabled: Boolean,dirty: Boolean,onChange:
     }
    }
   }
-  Text("Each slot is one visual line. Long content shrinks to fit; very long text is shortened with an ellipsis. Empty slots are hidden. Japanese font appearance depends on the phone’s installed fonts.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+  Text("Each slot is one visual line. Long content shrinks to fit; very long text is shortened with an ellipsis. Empty slots are hidden. Gothic JP and Mincho JP are bundled Japanese fonts, with separate regular and bold files.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
   Button(onClick=onSave,enabled=enabled && dirty,modifier=Modifier.fillMaxWidth()) {Text(if(dirty) "Save line layout" else "Line layout saved")}
   TextButton(onClick={onChange(Typography())},enabled=enabled) {Text("Reset line layout")}
  }

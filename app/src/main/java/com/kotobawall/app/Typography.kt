@@ -1,7 +1,7 @@
 package com.kotobawall.app
 
 data class TextRow(
- val template: String = "{word}", val font: String = "Sans", val size: Float = 40f,
+ val template: String = "{word}", val font: String = "Gothic JP", val size: Float = 40f,
  val bold: Boolean = false, val color: String = "#FFFFFF", val alignment: String = "Default"
 )
 data class Typography(
@@ -12,13 +12,13 @@ data class Typography(
  fun withRow(index: Int,row: TextRow): Typography = copy(rows=rows.mapIndexed { i,old -> if(i==index) row else old })
  fun text(row: TextRow,word: Word): String {
   if(hideRepeatedReading && row.template.trim()=="{reading}" && word.reading==word.written) return ""
-  // Replace tokens in one pass; custom text or dictionary values are never evaluated as code.
   return Regex("\\{(word|reading|meaning)\\}").replace(row.template) { match ->
    when(match.groupValues[1]) { "word"->word.written; "reading"->word.reading; else->word.meaning }
   }.replace('\n',' ').replace('\r',' ').trim()
  }
  companion object {
-  val fonts = listOf("Sans","Serif","Monospace","Rounded")
+  val fonts = listOf("Gothic JP","Mincho JP")
+  fun migrateFont(name: String) = if(name=="Serif" || name=="Mincho JP") "Mincho JP" else "Gothic JP"
   val alignments = listOf("Left","Center","Right")
   val presets = linkedMapOf(
    "Japanese word" to "{word}", "Kana reading" to "{reading}", "English meaning" to "{meaning}",

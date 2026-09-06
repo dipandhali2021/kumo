@@ -26,15 +26,13 @@ class WallViewModel(app: Application): AndroidViewModel(app) {
  init {
   ScreenCycleController.initialize(app)
   viewModelScope.launch {
-   // Only background/crop changes need a decoded bitmap. Text is drawn live by Compose.
-   settings.map { it.copy(lastApplied=0,lastError="",hours=0,wordIndex=0,scale=1f,position=0.65f,panel=0.4f,showReading=true,showMeaning=true,typography=Typography()) }.distinctUntilChanged().collectLatest { s ->
+   settings.map { WallSettings(background=it.background,photo=it.photo,cropX=it.cropX,cropY=it.cropY) }.distinctUntilChanged().collectLatest { s ->
     delay(180)
     try { _previewError.value=""; _preview.value=repo.preview(s) }
     catch(e: CancellationException) { throw e }
     catch(e: Exception) { _preview.value=null; _previewError.value=e.message ?: "Preview failed"; messages.emit(_previewError.value) }
    }
   }
-  // Reconcile the persisted opt-in with WorkManager when the app opens.
   RotationSchedule.set(app,settings.value.hours)
  }
  private fun operation(success: String?=null, block: suspend ()->Unit) {
@@ -57,7 +55,29 @@ class WallViewModel(app: Application): AndroidViewModel(app) {
  }
  fun pick(uri: Uri)=operation("Background saved on this device") { repo.importPhoto(uri) }
  fun palette(name: String)=operation { repo.usePalette(name) }
- fun next()=edit { it.copy(wordIndex=WallMath.nextIndex(it.wordIndex,words.size)) }
+ fun next()=operation {repo.nextWord()}
+ fun selectWord(id: String)=operation {repo.selectWord(id)}
+ fun downloadedAt(level: Int)=repo.downloadedAt(level)
+ private val _download=MutableStateFlow(DownloadState())
+ val download=_download.asStateFlow()
+ fun downloadLevels() {
+  if(_download.value.running) return
+  val levels=settings.value.levels.sortedDescending()
+  if(levels.isEmpty()) {messages.tryEmit("Select at least one JLPT level to download.");return}
+  _download.value=DownloadState(true,"Starting download…")
+  viewModelScope.launch {
+   val errors=mutableListOf<String>();var total=0
+   try {
+    for(level in levels) {
+     _download.value=DownloadState(true,"Downloading N$level…")
+     try {total+=repo.downloadLevel(level)}
+     catch(e: CancellationException) {throw e}
+     catch(e: Exception) {errors+="N$level: ${e.message ?: "Download failed"}"}
+    }
+    _download.value=DownloadState(false,if(errors.isEmpty()) "$total words saved for offline use." else "$total words saved. Existing cache kept for failed levels.",errors.joinToString("\n"))
+   } finally {if(_download.value.running) _download.value=_download.value.copy(running=false)}
+  }
+ }
  fun saveTypography(t: Typography)=operation("Line layout saved") { repo.edit { it.copy(typography=t) }; draft.value=null }
  fun apply(t: Typography?=null)=operation("Lock-screen wallpaper updated") {
   if(t!=null) { repo.edit { it.copy(typography=t) }; draft.value=null }
@@ -76,3 +96,5 @@ class WallViewModel(app: Application): AndroidViewModel(app) {
   RotationSchedule.set(getApplication(),hours)
  }
 }
+
+data class DownloadState(val running: Boolean=false,val message: String="",val error: String="")

@@ -27,7 +27,7 @@ object TypographyCodec {
      val r=rows?.optJSONObject(i);val d=initial.rows[i]
      if(r==null) d else d.copy(
       template=r.optString("template",d.template).take(160),
-      font=r.optString("font",d.font).takeIf {it in Typography.fonts} ?: "Sans",
+      font=Typography.migrateFont(r.optString("font",d.font)),
       size=r.optDouble("size",d.size.toDouble()).toFloat().takeIf {it.isFinite()}?.coerceIn(12f,60f) ?: d.size,
       bold=r.optBoolean("bold",d.bold),
       color=r.optString("color",d.color).takeIf {it.matches(Regex("#[0-9a-fA-F]{6}"))} ?: "#FFFFFF",

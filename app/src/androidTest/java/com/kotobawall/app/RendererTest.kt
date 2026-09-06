@@ -8,6 +8,15 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class RendererTest {
+ @Test fun bundledJapaneseFontsRenderDifferently() {
+  val context=InstrumentationRegistry.getInstrumentation().targetContext
+  val renderer=WallpaperRenderer(context)
+  val word=Word("eat","食べる","たべる","To eat","Verbs")
+  val a=renderer.render(WallSettings(typography=Typography().copy(rows=listOf(TextRow(font="Gothic JP")))),word,360,800)
+  val b=renderer.render(WallSettings(typography=Typography().copy(rows=listOf(TextRow(font="Mincho JP")))),word,360,800)
+  try {assertFalse("Bundled Japanese families must produce different glyphs",a.sameAs(b))}
+  finally {a.recycle();b.recycle()}
+ }
  @Test fun previewOverlayMatchesExport() {
   val context=InstrumentationRegistry.getInstrumentation().targetContext
   val renderer=WallpaperRenderer(context)
@@ -24,7 +33,7 @@ class RendererTest {
   val context=InstrumentationRegistry.getInstrumentation().targetContext
   val repo=(context.applicationContext as KotobaApplication).repository
   val renderer=WallpaperRenderer(context)
-  repo.words.forEach { word ->
+  repo.words.value.forEach { word ->
    listOf(0f,0.65f,1f).forEach { position ->
     val bitmap=renderer.render(WallSettings(scale=1.4f,position=position),word,360,800)
     assertEquals(360,bitmap.width); assertEquals(800,bitmap.height)
