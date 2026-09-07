@@ -6,7 +6,11 @@ import org.junit.Test
 class PexelsClientTest {
  private val photo="""{"id":42,"width":6000,"height":4000,"photographer":"Test photographer","photographer_url":"https://www.pexels.com/@example/","url":"https://www.pexels.com/photo/example-42/","alt":"A test scene","src":{"original":"https://images.pexels.com/photos/42/example.jpeg","medium":"https://images.pexels.com/photos/42/example.jpeg?w=350"}}"""
  private fun response(value: String=photo)="""{"photos":[$value],"next_page":"https://api.pexels.com/v1/curated?page=2"}"""
- @Test fun defaultsToPexels() {assertEquals(WallpaperProvider.PEXELS,WallpaperBrowseState().provider)}
+ // Discover opens on the key-free source so the grid has photos immediately; Pexels is opt-in.
+ @Test fun defaultsToTheKeyFreeSource() {
+  assertEquals(WallpaperProvider.PICSUM,WallpaperBrowseState().provider)
+  assertNotEquals(WallpaperProvider.PEXELS,WallpaperBrowseState().provider)
+ }
  @Test fun featuredDoesNotSendUnsupportedOrientation() {
   assertEquals("https://api.pexels.com/v1/curated?page=1&per_page=12",PexelsClient.requestUrl("",1,"portrait"))
  }
