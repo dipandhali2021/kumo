@@ -5,8 +5,12 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.material3.*
@@ -17,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -31,12 +36,16 @@ fun WallpapersScreen(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: M
  val last by vm.lastWallpaper.collectAsStateWithLifecycle()
  val browser: WallpaperBrowserViewModel=viewModel()
  val catalog by browser.state.collectAsStateWithLifecycle()
+ val key by browser.keyStatus.collectAsStateWithLifecycle()
  LaunchedEffect(browser) {browser.open()}
  val context=LocalContext.current
  val uri=LocalUriHandler.current
  var deleting by remember {mutableStateOf<SavedWallpaper?>(null)}
  var explainImport by remember {mutableStateOf(false)}
  var showFilters by remember {mutableStateOf(false)}
+ // Search lives on this screen now, so it re-seeds whenever the source or the active query changes.
+ var search by rememberSaveable(catalog.provider,catalog.query) {mutableStateOf(catalog.query)}
+ val canSearch=key.ready && !key.saving && !catalog.loading && (catalog.provider!=WallpaperProvider.PEXELS || key.present)
  // Both Save and Preview write a file into the collection, so both stop at the cap.
  val full=saved.size>=12
  val storage=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {granted ->
@@ -57,21 +66,43 @@ fun WallpapersScreen(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: M
    item(span={GridItemSpan(maxLineSpan)}) {
     Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
      Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-      Column(Modifier.weight(1f)) {
-       Text(catalog.provider.label,style=MaterialTheme.typography.titleMedium)
-       Text(if(catalog.query.isBlank()) "Featured photos" else "\u201C${catalog.query}\u201D",
-        style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,
-        maxLines=1,overflow=TextOverflow.Ellipsis)
-      }
-      val filtered=catalog.provider!=WallpaperProvider.PICSUM || catalog.query.isNotBlank()
+      Text(catalog.provider.label,style=MaterialTheme.typography.titleMedium,modifier=Modifier.weight(1f))
+      // Tinted only for a non-default source, since the search box is visible on the screen now.
+      val custom=catalog.provider!=WallpaperProvider.PICSUM
       Surface(shape=RoundedCornerShape(16.dp),
-       color=if(filtered) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant) {
-       IconButton(onClick={showFilters=true},modifier=Modifier.size(52.dp)) {Icon(AppIcons.Filter,"Sources and filters")}
+       color=if(custom) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant) {
+       IconButton(onClick={showFilters=true},modifier=Modifier.size(52.dp)) {
+        Icon(AppIcons.Filter,"Sources",
+         tint=if(custom) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+       }
       }
      }
      if(catalog.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
      if(catalog.error.isNotBlank()) Text(catalog.error,color=MaterialTheme.colorScheme.error)
      if(full) Text("Collection is full. Remove one in Saved to add more.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.error)
+    }
+   }
+   // Only Pexels supports keyword search and shape filters, so Unsplash shows none of this.
+   if(catalog.provider==WallpaperProvider.PEXELS) item(span={GridItemSpan(maxLineSpan)}) {
+    Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+     OutlinedTextField(value=search,onValueChange={search=it.take(100)},singleLine=true,
+      shape=RoundedCornerShape(28.dp),modifier=Modifier.fillMaxWidth(),
+      placeholder={Text("Search backgrounds",maxLines=1,overflow=TextOverflow.Ellipsis)},
+      leadingIcon={Icon(AppIcons.Search,null)},
+      trailingIcon={if(search.isNotEmpty()) IconButton(onClick={search="";if(canSearch) browser.search("")}) {Icon(AppIcons.Close,"Clear search")}},
+      keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),
+      keyboardActions=KeyboardActions(onSearch={if(canSearch) browser.search(search)}))
+     Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+      linkedMapOf("Featured" to "","Minimal" to "minimal abstract","Night city" to "city lights night","Space" to "stars galaxy","Architecture" to "architecture","Ocean" to "ocean coast","Textures" to "abstract texture").forEach {(label,query) ->
+       FilterChip(selected=catalog.query==query,onClick={search=query;browser.search(query)},enabled=canSearch,label={Text(label)})
+      }
+     }
+     Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+      linkedMapOf("Portrait" to "portrait","Landscape" to "landscape","Square" to "square","Any" to "").forEach {(label,value) ->
+       FilterChip(selected=catalog.orientation==value,onClick={browser.search(catalog.query,value)},
+        enabled=canSearch && catalog.query.isNotBlank(),label={Text(label)})
+      }
+     }
     }
    }
    items(catalog.items,key={"online:"+it.id}) {photo ->

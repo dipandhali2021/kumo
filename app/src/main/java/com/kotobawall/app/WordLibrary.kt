@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -21,6 +22,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.text.DateFormat
 import java.util.Date
 
+private const val WORDS_PER_PAGE=30
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WordLibrary(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: Modifier,onSelected: ()->Unit) {
@@ -28,6 +31,8 @@ fun WordLibrary(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: Modifi
  val download by vm.download.collectAsStateWithLifecycle()
  var query by rememberSaveable {mutableStateOf("")}
  var showFilters by rememberSaveable {mutableStateOf(false)}
+ var page by rememberSaveable {mutableIntStateOf(0)}
+ val grid=rememberLazyGridState()
  val uri=LocalUriHandler.current
  // distinctBy is not cosmetic: the vocabulary service can repeat a word inside one level, and
  // duplicate keys in a lazy list throw, which used to take the entire list down.
@@ -42,6 +47,12 @@ fun WordLibrary(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: Modifi
   else pool.filter {w ->listOf(w.written,w.reading,w.meaning,romajiById[w.id] ?: "").any {it.contains(term,true)}}
  }
  val counts=remember(library) {library.groupingBy {it.level}.eachCount()}
+ val pageCount=maxOf(1,(matches.size+WORDS_PER_PAGE-1)/WORDS_PER_PAGE)
+ // Coerced rather than corrected in an effect, so a shrinking list can never render a blank page.
+ val current=page.coerceIn(0,pageCount-1)
+ val visible=remember(matches,current) {matches.drop(current*WORDS_PER_PAGE).take(WORDS_PER_PAGE)}
+ LaunchedEffect(query,pool) {page=0}
+ LaunchedEffect(current) {grid.scrollToItem(0)}
  // The panel is hidden now, so the button itself has to show that a filter is narrowing the list.
  val filtered=s.favoritesOnly || !s.includeStarter || s.levels!=setOf(5)
  Column(modifier.fillMaxSize()) {
@@ -64,7 +75,7 @@ fun WordLibrary(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: Modifi
   Text("${matches.size} shown\u2009\u00b7\u2009${pool.size} eligible\u2009\u00b7\u2009${library.size} in library",
    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,
    modifier=Modifier.padding(start=20.dp,end=20.dp,bottom=6.dp))
-  LazyVerticalGrid(columns=GridCells.Fixed(2),modifier=Modifier.fillMaxWidth().weight(1f),
+  LazyVerticalGrid(columns=GridCells.Fixed(2),state=grid,modifier=Modifier.fillMaxWidth().weight(1f),
    contentPadding=PaddingValues(start=20.dp,end=20.dp,top=6.dp,bottom=24.dp),
    horizontalArrangement=Arrangement.spacedBy(12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
    if(matches.isEmpty()) item(span={GridItemSpan(maxLineSpan)}) {
@@ -79,7 +90,7 @@ fun WordLibrary(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: Modifi
      } else Text("Nothing matches \u201c${query.trim()}\u201d. Try a shorter search.")
     }
    }
-   items(matches,key={it.id}) {w ->
+   items(visible,key={it.id}) {w ->
     val favorite=w.id in s.favorites
     OutlinedCard(onClick={vm.selectWord(w.id);onSelected()},enabled=!busy,shape=RoundedCornerShape(20.dp),modifier=Modifier.fillMaxWidth()) {
      Column(Modifier.padding(start=14.dp,end=6.dp,top=14.dp,bottom=6.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
@@ -96,6 +107,17 @@ fun WordLibrary(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: Modifi
         Icon(if(favorite) AppIcons.Star else AppIcons.StarBorder,if(favorite) "Remove favorite" else "Add favorite",tint=MaterialTheme.colorScheme.primary)
        }
       }
+     }
+    }
+   }
+   if(pageCount>1) item(span={GridItemSpan(maxLineSpan)}) {
+    Row(Modifier.fillMaxWidth().padding(top=4.dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
+     TextButton(onClick={page=current-1},enabled=current>0) {
+      Icon(AppIcons.NavigateBefore,null,modifier=Modifier.size(18.dp));Spacer(Modifier.width(4.dp));Text("Previous")
+     }
+     Text("Page ${current+1} of $pageCount",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+     TextButton(onClick={page=current+1},enabled=current<pageCount-1) {
+      Text("Next");Spacer(Modifier.width(4.dp));Icon(AppIcons.NavigateNext,null,modifier=Modifier.size(18.dp))
      }
     }
    }

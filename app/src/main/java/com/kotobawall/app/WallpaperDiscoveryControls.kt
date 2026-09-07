@@ -3,42 +3,36 @@ package com.kotobawall.app
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
- * Sources and their settings, in a bottom sheet behind the Discover filter button. Picking a source
- * or running a search closes the sheet so the results are visible straight away.
+ * Sources only. Search and shape filters moved onto the Discover grid, because they belong next to
+ * the results they change; this sheet keeps the source choice and the Pexels key setting.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WallpaperFilterSheet(browser: WallpaperBrowserViewModel,s: WallpaperBrowseState,onDismiss: ()->Unit) {
  val key by browser.keyStatus.collectAsStateWithLifecycle()
  val uri=LocalUriHandler.current
- var search by rememberSaveable(s.provider,s.query) {mutableStateOf(s.query)}
  var showKey by remember {mutableStateOf(false)}
  // Do not put credentials in rememberSaveable / Android saved-instance state.
  var enteredKey by remember {mutableStateOf("")}
- val canSearch=key.ready && !key.saving && !s.loading && (s.provider!=WallpaperProvider.PEXELS || key.present)
  ModalBottomSheet(onDismissRequest=onDismiss) {
-  Column(Modifier.fillMaxWidth().heightIn(max=560.dp).verticalScroll(rememberScrollState())
-   .padding(start=20.dp,end=20.dp,bottom=24.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-   Text("Sources & filters",style=MaterialTheme.typography.titleLarge)
+  Column(Modifier.fillMaxWidth().heightIn(max=520.dp).verticalScroll(rememberScrollState())
+   .padding(start=20.dp,end=20.dp,bottom=28.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+   Text("Photo source",style=MaterialTheme.typography.titleLarge)
    Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
     WallpaperProvider.entries.forEach {source ->
-     FilterChip(selected=s.provider==source,onClick={browser.selectProvider(source)},label={Text(source.label)})
+     FilterChip(selected=s.provider==source,onClick={browser.selectProvider(source);onDismiss()},label={Text(source.label)})
     }
    }
    if(s.provider==WallpaperProvider.PEXELS) {
@@ -46,29 +40,11 @@ fun WallpaperFilterSheet(browser: WallpaperBrowserViewModel,s: WallpaperBrowseSt
      Text(if(!key.ready) "Opening secure key storage\u2026" else if(key.present) "Manage Pexels API key" else "Add Pexels API key")
     }
     if(key.error.isNotBlank()) Text(key.error,color=MaterialTheme.colorScheme.error)
-    OutlinedTextField(value=search,onValueChange={search=it.take(100)},placeholder={Text("Search backgrounds")},
-     singleLine=true,shape=RoundedCornerShape(28.dp),modifier=Modifier.fillMaxWidth(),
-     leadingIcon={Icon(AppIcons.Search,null)},keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),
-     keyboardActions=KeyboardActions(onSearch={if(canSearch) {browser.search(search);onDismiss()}}))
-    Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-     linkedMapOf("Featured" to "","Minimal" to "minimal abstract","Night city" to "city lights night","Space" to "stars galaxy","Architecture" to "architecture","Ocean" to "ocean coast","Textures" to "abstract texture").forEach {(label,query) ->
-      FilterChip(selected=s.query==query,onClick={search=query;browser.search(query)},enabled=canSearch,label={Text(label)})
-     }
-    }
-    Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-     linkedMapOf("Portrait" to "portrait","Landscape" to "landscape","Square" to "square","Any" to "").forEach {(label,value) ->
-      FilterChip(selected=s.orientation==value,onClick={browser.search(s.query,value)},enabled=canSearch && s.query.isNotBlank(),label={Text(label)})
-     }
-    }
-    Button(onClick={browser.search(search);onDismiss()},enabled=canSearch,shape=RoundedCornerShape(16.dp),
-     modifier=Modifier.fillMaxWidth().heightIn(min=52.dp)) {Text(if(search.isBlank()) "Browse featured" else "Search")}
     Text("Search terms and your key go to Pexels. Your own photos are never uploaded.",
      style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
     TextButton(onClick={uri.openUri("https://www.pexels.com")}) {Text("Photos provided by Pexels")}
    } else {
-    Button(onClick={browser.load();onDismiss()},enabled=canSearch,shape=RoundedCornerShape(16.dp),
-     modifier=Modifier.fillMaxWidth().heightIn(min=52.dp)) {Text("Browse photos")}
-    Text("No key needed. A fixed catalogue, so keyword search and shape filters need Pexels.",
+    Text("No key needed. A fixed catalogue, so keyword search needs Pexels.",
      style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
     TextButton(onClick={uri.openUri("https://picsum.photos")}) {Text("Photos from Unsplash via Lorem Picsum")}
    }

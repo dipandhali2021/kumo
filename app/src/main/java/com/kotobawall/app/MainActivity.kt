@@ -81,68 +81,76 @@ fun KotobaApp(vm: WallViewModel=viewModel()) {
    0 -> StudioScreen(vm,s,preview,previewError,busy,Modifier.padding(padding),export={exporter.launch("kumo-wallpaper.png")})
    1 -> WordLibrary(vm,s,busy,Modifier.padding(padding)) {tab=0}
    2 -> WallpapersScreen(vm,s,busy,Modifier.padding(padding),pick={picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))},onSelected={tab=0})
-   3 -> LazyColumn(Modifier.fillMaxSize().padding(padding),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(20.dp)) {
-    item {
-     Icon(AppIcons.AutoAwesome,null,tint=MaterialTheme.colorScheme.primary,modifier=Modifier.size(36.dp));Spacer(Modifier.height(16.dp))
-     Text(if(s.rotateWallpaper) "A new background.\nA new word." else "Same background.\nA new word.",style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.SemiBold)
-     Spacer(Modifier.height(12.dp))
-     Text("Automatically render the next vocabulary card and update your lock screen. Rendering happens on your device using your saved vocabulary.",style=MaterialTheme.typography.bodyLarge)
-    }
-    item {Card {Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+   // Every caveat that used to sit in body text now lives behind the info button on its own card.
+   3 -> LazyColumn(Modifier.fillMaxSize().padding(padding),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
+    item {Card {Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
      Row(verticalAlignment=Alignment.CenterVertically) {
       Icon(AppIcons.PhonelinkLock,null,tint=MaterialTheme.colorScheme.primary);Spacer(Modifier.width(12.dp))
       Text("New word on screen-off",style=MaterialTheme.typography.titleMedium,modifier=Modifier.weight(1f))
+      InfoButton("Screen-off updates","Kumo prepares the next word after your screen turns off, keeping a service active with an ongoing notification and a Stop control.\n\nAndroid can delay or stop it. Battery saving, device restrictions and force-stopping the app all pause updates until you open Kumo again, and quick screen toggles may be combined into one update.\n\nThe timer below is an alternative trigger, not an extra one. Backgrounds come from your saved collection, following the rotate setting in Wallpapers.")
      }
-     Text("Prepare the next word on screen-off. Keep your chosen background, or rotate your saved collection using the setting in Wallpapers.")
-     Text(when {cycle.running -> "Active · ongoing notification shown";cycle.enabled -> "Stopped · tap Resume to restart";else -> "Off · enable to start"},color=MaterialTheme.colorScheme.primary)
+     Text(when {cycle.running -> "Active";cycle.enabled -> "Stopped";else -> "Off"},
+      style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.primary)
      if(cycle.error.isNotEmpty()) Text(cycle.error,color=MaterialTheme.colorScheme.error)
      Button(onClick={if(cycle.running) vm.stopCycle() else confirmCycle=true},enabled=!busy,modifier=Modifier.fillMaxWidth()) {
-      Text(if(cycle.running) "Stop screen-off updates" else if(cycle.enabled) "Resume screen-off updates" else "Enable screen-off updates")
+      Text(if(cycle.running) "Stop" else if(cycle.enabled) "Resume" else "Enable")
      }
-     if(cycle.enabled && !cycle.running) TextButton(onClick={vm.stopCycle()}) {Text("Turn this mode off")}
-     Text("An ongoing notification is required. Fast toggles may be combined. Battery restrictions or force-stop can stop updates; reopen the app and resume. The timer below is an alternative, not an additional trigger.",style=MaterialTheme.typography.bodySmall)
+     if(cycle.enabled && !cycle.running) TextButton(onClick={vm.stopCycle()}) {Text("Turn off")}
     }}}
     item {OutlinedCard {Column(Modifier.padding(16.dp)) {
-     Text("Update frequency",style=MaterialTheme.typography.titleMedium)
-     listOf(0 to "Off · manual only",6 to "Every 6 hours",12 to "Every 12 hours",24 to "Daily").forEach {(hours,label) ->
+     Row(verticalAlignment=Alignment.CenterVertically) {
+      Text("Update frequency",style=MaterialTheme.typography.titleMedium,modifier=Modifier.weight(1f))
+      InfoButton("Update frequency","Timed updates are approximate. Android may delay them during battery saving, low battery or device restrictions, and the first update arrives after the interval you pick, not immediately.\n\nForce-stopping the app pauses background work until you open it again. Enabling screen-off updates above switches the timer off.")
+     }
+     listOf(0 to "Off",6 to "Every 6 hours",12 to "Every 12 hours",24 to "Daily").forEach {(hours,label) ->
       Row(Modifier.fillMaxWidth().heightIn(min=52.dp).clickable(enabled=!busy) {if(hours==0) vm.schedule(0) else if(hours!=s.hours || cycle.enabled) pendingHours=hours},verticalAlignment=Alignment.CenterVertically) {
        RadioButton(selected=s.hours==hours && !cycle.enabled,onClick=null,enabled=!busy);Spacer(Modifier.width(12.dp));Text(label)
       }
      }
     }}}
-    item {
-     Text("Updates are approximate",style=MaterialTheme.typography.titleMedium);Spacer(Modifier.height(8.dp))
-     Text("Android may delay work during battery saving, low battery or device restrictions. The first update is scheduled after the selected interval. Force-stopping the app pauses background work until you open it again.",style=MaterialTheme.typography.bodyMedium)
-    }
     item {Card {Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-     Text("Wallpaper status",style=MaterialTheme.typography.titleMedium)
-     Text(if(s.lastApplied==0L) "No wallpaper applied yet" else "Last applied: "+DateFormat.getDateTimeInstance(DateFormat.MEDIUM,DateFormat.SHORT).format(Date(s.lastApplied)))
+     Row(verticalAlignment=Alignment.CenterVertically) {
+      Text("Wallpaper status",style=MaterialTheme.typography.titleMedium,modifier=Modifier.weight(1f))
+      InfoButton("Wallpaper status","Automatic updates replace any lock-screen wallpaper you set elsewhere. Turn them off here to stop.\n\nEach card is rendered on your device from your saved vocabulary. Nothing is uploaded.")
+     }
+     Text(if(s.lastApplied==0L) "Not applied yet" else "Last applied "+DateFormat.getDateTimeInstance(DateFormat.MEDIUM,DateFormat.SHORT).format(Date(s.lastApplied)),
+      style=MaterialTheme.typography.bodyMedium)
      if(s.lastError.isNotEmpty()) Text(s.lastError,color=MaterialTheme.colorScheme.error)
-     Text("Automatic updates will replace any wallpaper you set elsewhere. Turn them off here to stop.",style=MaterialTheme.typography.bodySmall)
     }}}
    }
   }
  }
  if(confirmCycle) AlertDialog(onDismissRequest={confirmCycle=false},title={Text("Enable screen-off updates?")},
-  text={Text("Kumo will keep a service active with an ongoing notification and a Stop control. It updates your lock-screen image after screen-off events. Android can delay or stop it; it is not guaranteed on every wake. Enabling this turns off timed rotation.")},
+  text={Text("Kumo keeps a service active with an ongoing notification and a Stop control, and updates your lock screen after screen-off events. Android can delay or stop it. This turns off timed rotation.")},
   confirmButton={TextButton(onClick={confirmCycle=false
    if(Build.VERSION.SDK_INT>=33 && ContextCompat.checkSelfPermission(context,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
    else vm.startCycle()
   }) {Text("Enable")}},dismissButton={TextButton(onClick={confirmCycle=false}) {Text("Cancel")}})
- if(pendingHours>0) AlertDialog(onDismissRequest={pendingHours=0},title={Text("Enable automatic wallpaper changes?")},
-  text={Text("Your lock-screen wallpaper will be replaced with the next word approximately every $pendingHours hours. The original background is preserved. You can turn this off at any time.")},
+ if(pendingHours>0) AlertDialog(onDismissRequest={pendingHours=0},title={Text("Change wallpaper automatically?")},
+  text={Text("Your lock screen will show the next word about every $pendingHours hours. Your background is kept, and you can turn this off at any time.")},
   confirmButton={TextButton(onClick={vm.schedule(pendingHours);pendingHours=0}) {Text("Enable")}},dismissButton={TextButton(onClick={pendingHours=0}) {Text("Cancel")}})
  if(showAbout) {
   val licenses by produceState("") {value=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
    listOf("gothic_OFL.txt","mincho_OFL.txt").joinToString("\n\n") {name ->context.assets.open("fonts/$name").bufferedReader().use {it.readText()}}
   }}
-  AlertDialog(onDismissRequest={showAbout=false},title={Text("Kumo 1.7 · 雲")},text={Column(Modifier.heightIn(max=380.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-   Text("50 offline starter entries, plus optional JLPT N5–N1 downloads. No account or analytics. Your photos and settings are not uploaded. The vocabulary provider receives your IP address and requested level when you download.")
-   Text("Romaji: transliterated on your device from the kana reading using modified Hepburn, with macrons for katakana long vowels. Starter words carry curated spellings such as konnichiwa; downloaded words keep kana vowel pairs literal, so がっこう reads gakkou.")
-   Text("Vocabulary: wkei / JLPT Vocabulary API, based on Jonathan Waller’s Tanos study lists. Levels are estimates, not an official JLPT syllabus. Readings and meanings may contain errors.")
+  AlertDialog(onDismissRequest={showAbout=false},title={Text("Kumo 1.8 \u00b7 \u96f2")},text={Column(Modifier.heightIn(max=380.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+   Text("50 offline starter entries, plus optional JLPT N5\u2013N1 downloads. No account or analytics. Your photos and settings are not uploaded. The vocabulary provider receives your IP address and requested level when you download.")
+   Text("Romaji: taken from the vocabulary service when it supplies one, and otherwise written on your device from the kana reading using modified Hepburn, with macrons for long vowels.")
+   Text("Vocabulary: wkei / JLPT Vocabulary API, based on Jonathan Waller\u2019s Tanos study lists. Levels are estimates, not an official JLPT syllabus. Readings and meanings may contain errors.")
    Text("Japanese fonts: Zen Kaku Gothic New and Zen Old Mincho, bundled under SIL Open Font License 1.1. Interface icons: original compact Kumo vector set.")
-   Text("Online photos: Pexels (default) and Unsplash via Lorem Picsum. Pexels receives your search terms and API key. Browsing and saving contact the provider and CDN. Keys are entered on-device and encrypted with Android Keystore, not bundled in the APK. Saved backgrounds and Last used stay in private app storage. Coil image loader: Apache 2.0.")
+   Text("Online photos: Unsplash via Lorem Picsum by default, with Pexels as an optional source. Pexels receives your search terms and API key. Browsing and saving contact the provider and CDN. Keys are entered on-device and encrypted with Android Keystore, not bundled in the APK. Saved backgrounds and Last used stay in private app storage. Coil image loader: Apache 2.0.")
    Text(licenses,style=MaterialTheme.typography.bodySmall)
   }},confirmButton={TextButton(onClick={showAbout=false}) {Text("Close")}})
  }
+}
+/** Title-row info affordance: keeps long explanations off the screen until they are asked for. */
+@Composable
+private fun InfoButton(title: String,body: String) {
+ var open by remember {mutableStateOf(false)}
+ IconButton(onClick={open=true},modifier=Modifier.size(36.dp)) {
+  Icon(AppIcons.Info,"About $title",tint=MaterialTheme.colorScheme.onSurfaceVariant)
+ }
+ if(open) AlertDialog(onDismissRequest={open=false},title={Text(title)},
+  text={Text(body,style=MaterialTheme.typography.bodyMedium)},
+  confirmButton={TextButton(onClick={open=false}) {Text("Got it")}})
 }
