@@ -2,50 +2,110 @@ package com.kotobawall.app
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.text.DateFormat
 import java.util.Date
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WordLibrary(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: Modifier,onSelected: ()->Unit) {
  val library by vm.words.collectAsStateWithLifecycle()
  val download by vm.download.collectAsStateWithLifecycle()
  var query by rememberSaveable {mutableStateOf("")}
+ var showFilters by rememberSaveable {mutableStateOf(false)}
  val uri=LocalUriHandler.current
  val pool=remember(library,s.levels,s.includeStarter,s.favorites,s.favoritesOnly) {library.filter {WordPolicy.eligible(it,s)}}
  // Transliterate once per pool: searching would otherwise convert thousands of words on every keystroke.
  val romajiById=remember(pool) {pool.associate {it.id to Romaji.display(it)}}
  val matches=remember(pool,romajiById,query) {pool.filter {w ->listOf(w.written,w.reading,w.meaning,romajiById[w.id] ?: "").any {it.contains(query.trim(),true)}}}
  val counts=remember(library) {library.groupingBy {it.level}.eachCount()}
- LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-  item {
-   Text("Your vocabulary",style=MaterialTheme.typography.headlineSmall)
-   Spacer(Modifier.height(8.dp))
-   Text("Choose the levels used in this list and automatic wallpaper rotation. N5 is beginner; N1 is advanced.")
+ // The panel is hidden now, so the button itself has to show that a filter is narrowing the list.
+ val filtered=s.favoritesOnly || !s.includeStarter || s.levels!=setOf(5)
+ Column(modifier.fillMaxSize()) {
+  Row(Modifier.fillMaxWidth().padding(start=20.dp,end=20.dp,top=12.dp,bottom=6.dp),
+   horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.CenterVertically) {
+   OutlinedTextField(value=query,onValueChange={query=it.take(120)},singleLine=true,
+    shape=RoundedCornerShape(28.dp),modifier=Modifier.weight(1f),
+    placeholder={Text("Search kanji, kana, romaji or meaning",maxLines=1,overflow=TextOverflow.Ellipsis)},
+    leadingIcon={Icon(AppIcons.Search,null)},
+    trailingIcon={if(query.isNotEmpty()) IconButton(onClick={query=""}) {Icon(AppIcons.Close,"Clear search")}})
+   Surface(shape=RoundedCornerShape(18.dp),
+    color=if(filtered) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant) {
+    IconButton(onClick={showFilters=true},modifier=Modifier.size(56.dp)) {
+     Icon(AppIcons.Filter,"Levels and filters",
+      tint=if(filtered) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+   }
   }
-  item {OutlinedCard {Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-   Text("JLPT levels",style=MaterialTheme.typography.titleMedium)
+  Text("${matches.size} of ${pool.size} eligible words\u2009\u00b7\u2009tap a word to preview",
+   style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,
+   modifier=Modifier.padding(start=20.dp,end=20.dp,bottom=6.dp))
+  LazyVerticalGrid(columns=GridCells.Fixed(2),modifier=Modifier.fillMaxWidth().weight(1f),
+   contentPadding=PaddingValues(start=20.dp,end=20.dp,top=6.dp,bottom=24.dp),
+   horizontalArrangement=Arrangement.spacedBy(12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+   if(matches.isEmpty()) item(span={GridItemSpan(maxLineSpan)}) {
+    Text(if(pool.isEmpty()) "No eligible words. Download selected levels, include the starter pack, or turn off Favorites only."
+     else "No matches. Try a shorter search.",Modifier.padding(vertical=24.dp))
+   }
+   items(matches,key={it.id}) {w ->
+    val favorite=w.id in s.favorites
+    OutlinedCard(onClick={vm.selectWord(w.id);onSelected()},enabled=!busy,shape=RoundedCornerShape(20.dp),modifier=Modifier.fillMaxWidth()) {
+     Column(Modifier.padding(start=14.dp,end=6.dp,top=14.dp,bottom=6.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+      Text(if(w.level==0) "Starter" else "N${w.level}",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.primary)
+      Text(w.written,style=MaterialTheme.typography.headlineSmall,maxLines=2,overflow=TextOverflow.Ellipsis)
+      if(w.reading!=w.written) Text(w.reading,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1,overflow=TextOverflow.Ellipsis)
+      val romaji=romajiById[w.id] ?: ""
+      if(romaji.isNotBlank()) Text(romaji,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1,overflow=TextOverflow.Ellipsis)
+      Text(w.meaning,style=MaterialTheme.typography.bodySmall,maxLines=2,overflow=TextOverflow.Ellipsis)
+      Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+       if(library.getOrNull(s.wordIndex)?.id==w.id) Icon(AppIcons.CheckCircle,"Selected",tint=MaterialTheme.colorScheme.primary,modifier=Modifier.size(18.dp))
+       Spacer(Modifier.weight(1f))
+       IconButton(onClick={vm.edit {it.copy(favorites=if(favorite) it.favorites-w.id else it.favorites+w.id)}},enabled=!busy) {
+        Icon(if(favorite) AppIcons.Star else AppIcons.StarBorder,if(favorite) "Remove favorite" else "Add favorite",tint=MaterialTheme.colorScheme.primary)
+       }
+      }
+     }
+    }
+   }
+   item(span={GridItemSpan(maxLineSpan)}) {
+    Column(Modifier.padding(top=12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+     Text("Romaji comes from the vocabulary service when it provides one, and is otherwise written on your device from the kana reading.",style=MaterialTheme.typography.bodySmall)
+     Text("Source: JLPT Vocabulary API by wkei; underlying study lists from Jonathan Waller / Tanos. These are third-party study levels, not an official JLPT vocabulary syllabus.",style=MaterialTheme.typography.bodySmall)
+     TextButton(onClick={uri.openUri(JlptClient.HOME)}) {Text("Vocabulary source & documentation")}
+    }
+   }
+  }
+ }
+ if(showFilters) ModalBottomSheet(onDismissRequest={showFilters=false}) {
+  Column(Modifier.fillMaxWidth().heightIn(max=560.dp).verticalScroll(rememberScrollState())
+   .padding(start=20.dp,end=20.dp,bottom=28.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+   Text("Levels & filters",style=MaterialTheme.typography.titleLarge)
+   Text("These choices drive this list and automatic wallpaper updates. N5 is beginner; N1 is advanced.",style=MaterialTheme.typography.bodyMedium)
    Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
     (5 downTo 1).forEach {level -> FilterChip(selected=level in s.levels,enabled=!busy && !download.running,
      onClick={vm.edit {it.copy(levels=if(level in it.levels) it.levels-level else it.levels+level)}},
-     label={Text("N$level · ${counts[level] ?: 0}")})}
+     label={Text("N$level\u2009\u00b7\u2009${counts[level] ?: 0}")})}
    }
    LibrarySwitch("Include 50 offline starter words",s.includeStarter,!busy) {v->vm.edit {it.copy(includeStarter=v)}}
    LibrarySwitch("Favorites only",s.favoritesOnly,!busy) {v->vm.edit {it.copy(favoritesOnly=v)}}
-   LibrarySwitch("Shuffle wallpaper rotation",s.shuffle,!busy) {v->vm.edit {it.copy(shuffle=v)}}
-   Text("${pool.size} eligible words · searches only filter this list, not wallpaper rotation.",style=MaterialTheme.typography.bodySmall)
-   Button(onClick={vm.downloadLevels()},enabled=!download.running && s.levels.isNotEmpty(),modifier=Modifier.fillMaxWidth()) {
-    Icon(AppIcons.Download,null);Spacer(Modifier.width(8.dp));Text(if(download.running) "Downloading…" else "Download / refresh selected levels")
+   Text("${pool.size} eligible words",style=MaterialTheme.typography.bodySmall)
+   Button(onClick={vm.downloadLevels()},enabled=!download.running && s.levels.isNotEmpty(),shape=RoundedCornerShape(20.dp),modifier=Modifier.fillMaxWidth().heightIn(min=52.dp)) {
+    Icon(AppIcons.Download,null);Spacer(Modifier.width(8.dp));Text(if(download.running) "Downloading\u2026" else "Download / refresh selected levels")
    }
    if(download.running) LinearProgressIndicator(Modifier.fillMaxWidth())
    if(download.message.isNotBlank()) Text(download.message,style=MaterialTheme.typography.bodyMedium)
@@ -55,41 +115,6 @@ fun WordLibrary(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: Modifi
     Text(if(stamp==0L) "N$level: not downloaded" else "N$level: saved "+DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(stamp)),style=MaterialTheme.typography.bodySmall)
    }
    Text("Downloads need internet. Saved words work offline; screen-off updates never call the API. Public service availability and word accuracy can vary.",style=MaterialTheme.typography.bodySmall)
-  }}}
-  item {
-   OutlinedTextField(value=query,onValueChange={query=it.take(120)},singleLine=true,label={Text("Search Japanese, kana, romaji or meaning")},
-    leadingIcon={Icon(AppIcons.Search,null)},modifier=Modifier.fillMaxWidth(),
-    trailingIcon={if(query.isNotEmpty()) IconButton(onClick={query=""}) {Icon(AppIcons.Close,"Clear search")}})
-   Spacer(Modifier.height(8.dp));Text("${matches.size} results · tap a word to preview",style=MaterialTheme.typography.bodySmall)
-  }
-  if(matches.isEmpty()) item {
-   Text(if(pool.isEmpty()) "No eligible words. Download selected levels, include the starter pack, or turn off Favorites only." else "No matches. Try a shorter search.",Modifier.padding(vertical=16.dp))
-  }
-  items(matches,key={it.id}) {w ->
-   val romaji=romajiById[w.id] ?: ""
-   OutlinedCard(onClick={vm.selectWord(w.id);onSelected()},enabled=!busy,modifier=Modifier.fillMaxWidth()) {
-    Row(Modifier.padding(16.dp),verticalAlignment=Alignment.CenterVertically) {
-     Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
-      Text(if(w.level==0) "Starter · ungraded" else "JLPT N${w.level}",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.primary)
-      Text(w.written,style=MaterialTheme.typography.titleLarge)
-      if(w.reading!=w.written) Text(w.reading,color=MaterialTheme.colorScheme.onSurfaceVariant)
-      if(romaji.isNotBlank()) Text(romaji,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-      Text(w.meaning,style=MaterialTheme.typography.bodyMedium)
-     }
-     Column(horizontalAlignment=Alignment.CenterHorizontally) {
-      IconButton(onClick={vm.edit {it.copy(favorites=if(w.id in it.favorites) it.favorites-w.id else it.favorites+w.id)}},enabled=!busy) {
-       Icon(if(w.id in s.favorites) AppIcons.Star else AppIcons.StarBorder,
-        if(w.id in s.favorites) "Remove favorite" else "Add favorite",tint=MaterialTheme.colorScheme.primary)
-      }
-      if(library.getOrNull(s.wordIndex)?.id==w.id) Icon(AppIcons.CheckCircle,"Selected",tint=MaterialTheme.colorScheme.primary)
-     }
-    }
-   }
-  }
-  item {
-   Text("Romaji is written on your device from the kana reading. Starter words use curated spellings; downloaded words keep kana vowel pairs literal, so がっこう reads gakkou.",style=MaterialTheme.typography.bodySmall)
-   Text("Source: JLPT Vocabulary API by wkei; underlying study lists from Jonathan Waller / Tanos. These are third-party study levels, not an official JLPT vocabulary syllabus.",style=MaterialTheme.typography.bodySmall)
-   TextButton(onClick={uri.openUri(JlptClient.HOME)}) {Text("Vocabulary source & documentation")}
   }
  }
 }
