@@ -29,10 +29,18 @@ fun WordLibrary(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: Modifi
  var query by rememberSaveable {mutableStateOf("")}
  var showFilters by rememberSaveable {mutableStateOf(false)}
  val uri=LocalUriHandler.current
- val pool=remember(library,s.levels,s.includeStarter,s.favorites,s.favoritesOnly) {library.filter {WordPolicy.eligible(it,s)}}
+ // distinctBy is not cosmetic: the vocabulary service can repeat a word inside one level, and
+ // duplicate keys in a lazy list throw, which used to take the entire list down.
+ val pool=remember(library,s.levels,s.includeStarter,s.favorites,s.favoritesOnly) {
+  library.filter {WordPolicy.eligible(it,s)}.distinctBy {it.id}
+ }
  // Transliterate once per pool: searching would otherwise convert thousands of words on every keystroke.
  val romajiById=remember(pool) {pool.associate {it.id to Romaji.display(it)}}
- val matches=remember(pool,romajiById,query) {pool.filter {w ->listOf(w.written,w.reading,w.meaning,romajiById[w.id] ?: "").any {it.contains(query.trim(),true)}}}
+ val matches=remember(pool,romajiById,query) {
+  val term=query.trim()
+  if(term.isEmpty()) pool
+  else pool.filter {w ->listOf(w.written,w.reading,w.meaning,romajiById[w.id] ?: "").any {it.contains(term,true)}}
+ }
  val counts=remember(library) {library.groupingBy {it.level}.eachCount()}
  // The panel is hidden now, so the button itself has to show that a filter is narrowing the list.
  val filtered=s.favoritesOnly || !s.includeStarter || s.levels!=setOf(5)
@@ -52,15 +60,24 @@ fun WordLibrary(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: Modifi
     }
    }
   }
-  Text("${matches.size} of ${pool.size} eligible words\u2009\u00b7\u2009tap a word to preview",
+  // Counts are spelled out so an empty list from filters can be told apart from an empty library.
+  Text("${matches.size} shown\u2009\u00b7\u2009${pool.size} eligible\u2009\u00b7\u2009${library.size} in library",
    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,
    modifier=Modifier.padding(start=20.dp,end=20.dp,bottom=6.dp))
   LazyVerticalGrid(columns=GridCells.Fixed(2),modifier=Modifier.fillMaxWidth().weight(1f),
    contentPadding=PaddingValues(start=20.dp,end=20.dp,top=6.dp,bottom=24.dp),
    horizontalArrangement=Arrangement.spacedBy(12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
    if(matches.isEmpty()) item(span={GridItemSpan(maxLineSpan)}) {
-    Text(if(pool.isEmpty()) "No eligible words. Download selected levels, include the starter pack, or turn off Favorites only."
-     else "No matches. Try a shorter search.",Modifier.padding(vertical=24.dp))
+    Column(Modifier.padding(vertical=16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+     if(library.isEmpty()) Text("The word list could not be read. Reinstalling the app restores the 50 starter words.",color=MaterialTheme.colorScheme.error)
+     else if(pool.isEmpty()) {
+      Text("Every word is filtered out right now.",style=MaterialTheme.typography.titleMedium)
+      if(!s.includeStarter) Button(onClick={vm.edit {it.copy(includeStarter=true)}},enabled=!busy,shape=RoundedCornerShape(20.dp)) {Text("Turn the 50 starter words back on")}
+      if(s.favoritesOnly) Button(onClick={vm.edit {it.copy(favoritesOnly=false)}},enabled=!busy,shape=RoundedCornerShape(20.dp)) {Text("Stop showing favorites only")}
+      if(s.levels.isEmpty()) Button(onClick={vm.edit {it.copy(levels=setOf(5))}},enabled=!busy,shape=RoundedCornerShape(20.dp)) {Text("Select level N5")}
+      TextButton(onClick={showFilters=true}) {Text("Open levels & filters")}
+     } else Text("Nothing matches \u201c${query.trim()}\u201d. Try a shorter search.")
+    }
    }
    items(matches,key={it.id}) {w ->
     val favorite=w.id in s.favorites

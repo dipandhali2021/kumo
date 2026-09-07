@@ -72,9 +72,6 @@ fun StudioScreen(vm: WallViewModel,s: WallSettings,bitmap: Bitmap?,error: String
    vm.selectWord(eligible[((at+delta)%eligible.size+eligible.size)%eligible.size].id)
   }
  }
- // Each tab needs a different amount of preview: Position keeps its controls unscrolled,
- // Export shows the wallpaper large, and Line designer only needs the zoomed text band.
- val previewShare=when(tab) {TAB_LINES->0.32f;TAB_EXPORT->0.50f;else->0.40f}
  val previewPane: @Composable (Modifier)->Unit={paneModifier ->
   Column(paneModifier.padding(start=20.dp,end=20.dp,top=4.dp,bottom=8.dp)) {
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
@@ -96,41 +93,35 @@ fun StudioScreen(vm: WallViewModel,s: WallSettings,bitmap: Bitmap?,error: String
   Surface(modifier=if(wide) sheetModifier else sheetModifier.sheetTopEdge(28.dp,Color.White.copy(alpha=0.32f)),
    tonalElevation=3.dp,
    shape=if(wide) RoundedCornerShape(topStart=28.dp,bottomStart=28.dp) else RoundedCornerShape(topStart=28.dp,topEnd=28.dp)) {
-   Column(Modifier.fillMaxSize()) {
-    Box(Modifier.weight(1f)) {
-     key(tab) {
-      val scroll=rememberScrollState()
-      val fade=(scroll.value/70f).coerceIn(0f,1f)
-      Column(Modifier.fillMaxSize().topFade(fade,28.dp).verticalScroll(scroll)
-       .padding(start=20.dp,end=20.dp,top=20.dp,bottom=10.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
-       if(!hasWords) Text("No eligible words. Download a selected JLPT level or adjust filters in Words.",color=MaterialTheme.colorScheme.error)
-       when(tab) {
-        TAB_POSITION -> {
-         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-          linkedMapOf("Top" to 0f,"Middle" to 0.5f,"Bottom" to 1f).forEach {(name,target) ->
-           PositionChoice(name,kotlin.math.abs(position-target)<0.01f,!busy,Modifier.weight(1f)) {
-            position=target;vm.edit {it.copy(position=target)}
-           }
-          }
-         }
-         LiveSlider("Text position",position,0f..1f,!busy,{position=it}) {vm.edit {it.copy(position=position)}}
-         LiveSlider("Text size",scale,0.75f..1.4f,!busy,{scale=it}) {vm.edit {it.copy(scale=scale)}}
-         LiveSlider("Dark panel",panel,0f..0.8f,!busy,{panel=it}) {vm.edit {it.copy(panel=panel)}}
+   // Portrait sizes the sheet to its own controls, so a short tab such as Export leaves no dead
+   // space above the apply button and hands that height back to the preview instead.
+   Column(if(wide) Modifier.fillMaxSize() else Modifier.fillMaxWidth()) {
+    val tabContent=if(wide) Modifier.weight(1f) else Modifier.fillMaxWidth()
+    key(tab) {
+     val scroll=rememberScrollState()
+     val fade=(scroll.value/70f).coerceIn(0f,1f)
+     Column(tabContent.topFade(fade,28.dp).verticalScroll(scroll)
+      .padding(start=20.dp,end=20.dp,top=18.dp,bottom=8.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+      if(!hasWords) Text("No eligible words. Download a selected JLPT level or adjust filters in Words.",color=MaterialTheme.colorScheme.error)
+      when(tab) {
+       TAB_POSITION -> {
+        LiveSlider("Text position",position,0f..1f,!busy,{position=it}) {vm.edit {it.copy(position=position)}}
+        LiveSlider("Text size",scale,0.75f..1.4f,!busy,{scale=it}) {vm.edit {it.copy(scale=scale)}}
+        LiveSlider("Dark panel",panel,0f..0.8f,!busy,{panel=it}) {vm.edit {it.copy(panel=panel)}}
+       }
+       TAB_LINES -> {
+        TypographyEditor(typography,!busy,dirty,onChange={vm.editTypography(it)},onSave={vm.saveTypography(typography)})
+        Text("The arrows on the preview step through your words, so you can check how each line looks before applying.",
+         style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+       }
+       else -> {
+        StudioSwitch("Show clock guide",clockGuide,true) {clockGuide=it}
+        OutlinedButton(onClick=export,enabled=!busy && bitmap!=null && hasWords && !dirty,shape=RoundedCornerShape(16.dp),
+         modifier=Modifier.fillMaxWidth().heightIn(min=52.dp)) {
+         Icon(AppIcons.Download,null);Spacer(Modifier.width(8.dp));Text(if(dirty) "Save line layout before export" else "Export wallpaper PNG")
         }
-        TAB_LINES -> {
-         TypographyEditor(typography,!busy,dirty,onChange={vm.editTypography(it)},onSave={vm.saveTypography(typography)})
-         Text("The arrows on the preview step through your words, so you can check how each line looks before applying.",
-          style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        else -> {
-         StudioSwitch("Show clock guide",clockGuide,true) {clockGuide=it}
-         OutlinedButton(onClick=export,enabled=!busy && bitmap!=null && hasWords && !dirty,shape=RoundedCornerShape(16.dp),
-          modifier=Modifier.fillMaxWidth().heightIn(min=52.dp)) {
-          Icon(AppIcons.Download,null);Spacer(Modifier.width(8.dp));Text(if(dirty) "Save line layout before export" else "Export wallpaper PNG")
-         }
-         Text("The clock is a preview guide only and is never drawn into the wallpaper.",
-          style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        Text("The clock is a preview guide only and is never drawn into the wallpaper.",
+         style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
        }
       }
      }
@@ -151,9 +142,10 @@ fun StudioScreen(vm: WallViewModel,s: WallSettings,bitmap: Bitmap?,error: String
     controls(Modifier.fillMaxWidth().weight(1f),true)
    }
   } else Column(Modifier.fillMaxSize()) {
-   previewPane(Modifier.weight(previewShare).fillMaxWidth())
+   // The sheet is measured first and wraps its controls; the preview keeps everything left over.
+   previewPane(Modifier.weight(1f).fillMaxWidth())
    StudioTabs(tab,!busy) {tab=it}
-   controls(Modifier.weight(1f-previewShare).fillMaxWidth(),false)
+   controls(Modifier.fillMaxWidth().heightIn(max=maxHeight*0.62f),false)
   }
  }
  if(expanded) Dialog(onDismissRequest={expanded=false},properties=DialogProperties(usePlatformDefaultWidth=false)) {
@@ -202,15 +194,6 @@ private fun StudioTabs(selected: Int,enabled: Boolean,onSelect: (Int)->Unit) {
     Text(label,maxLines=1,style=MaterialTheme.typography.labelLarge)
    }
   }
- }
-}
-@Composable
-private fun PositionChoice(label: String,selected: Boolean,enabled: Boolean,modifier: Modifier,onClick: ()->Unit) {
- val shape=RoundedCornerShape(12.dp);val height=Modifier.heightIn(min=48.dp);val padding=PaddingValues(horizontal=6.dp)
- if(selected) Button(onClick=onClick,enabled=enabled,shape=shape,contentPadding=padding,modifier=modifier.then(height)) {
-  Text(label,maxLines=1,style=MaterialTheme.typography.titleSmall)
- } else OutlinedButton(onClick=onClick,enabled=enabled,shape=shape,contentPadding=padding,modifier=modifier.then(height)) {
-  Text(label,maxLines=1,style=MaterialTheme.typography.titleSmall)
  }
 }
 @Composable
@@ -282,14 +265,16 @@ private fun ZoomedPreview(bitmap: Bitmap?,s: WallSettings,word: Word,error: Stri
   }
  }
 }
+/** Compact slider row: the label and value share one line so three sliders leave room for the preview. */
 @Composable
 private fun LiveSlider(label: String,value: Float,range: ClosedFloatingPointRange<Float>,enabled: Boolean,onChange: (Float)->Unit,onFinish: ()->Unit) {
  Column {
   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-   Text(label,Modifier.weight(1f),style=MaterialTheme.typography.titleSmall,fontWeight=FontWeight.SemiBold)
-   Text("${(value*100).roundToInt()}%",style=MaterialTheme.typography.titleSmall,fontWeight=FontWeight.SemiBold,color=MaterialTheme.colorScheme.onSurfaceVariant)
+   Text(label,Modifier.weight(1f),style=MaterialTheme.typography.labelLarge,fontWeight=FontWeight.SemiBold)
+   Text("${(value*100).roundToInt()}%",style=MaterialTheme.typography.labelLarge,color=MaterialTheme.colorScheme.onSurfaceVariant)
   }
-  Slider(value=value,onValueChange=onChange,onValueChangeFinished=onFinish,valueRange=range,enabled=enabled,modifier=Modifier.semantics {contentDescription=label})
+  Slider(value=value,onValueChange=onChange,onValueChangeFinished=onFinish,valueRange=range,enabled=enabled,
+   modifier=Modifier.fillMaxWidth().height(36.dp).semantics {contentDescription=label})
  }
 }
 @Composable
