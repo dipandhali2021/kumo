@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
@@ -73,9 +74,9 @@ fun StudioScreen(vm: WallViewModel,s: WallSettings,bitmap: Bitmap?,error: String
  }
  // Each tab needs a different amount of preview: Position keeps its controls unscrolled,
  // Export shows the wallpaper large, and Line designer only needs the zoomed text band.
- val previewShare=when(tab) {TAB_LINES->0.30f;TAB_EXPORT->0.56f;else->0.40f}
+ val previewShare=when(tab) {TAB_LINES->0.32f;TAB_EXPORT->0.50f;else->0.40f}
  val previewPane: @Composable (Modifier)->Unit={paneModifier ->
-  Column(paneModifier.padding(start=20.dp,end=20.dp,top=4.dp,bottom=12.dp)) {
+  Column(paneModifier.padding(start=20.dp,end=20.dp,top=4.dp,bottom=8.dp)) {
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
     Text(if(tab==TAB_LINES) "Text preview" else "Live preview",style=MaterialTheme.typography.titleMedium,
      fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f))
@@ -96,17 +97,15 @@ fun StudioScreen(vm: WallViewModel,s: WallSettings,bitmap: Bitmap?,error: String
    tonalElevation=3.dp,
    shape=if(wide) RoundedCornerShape(topStart=28.dp,bottomStart=28.dp) else RoundedCornerShape(topStart=28.dp,topEnd=28.dp)) {
    Column(Modifier.fillMaxSize()) {
-    StudioTabs(tab,!busy) {tab=it}
     Box(Modifier.weight(1f)) {
      key(tab) {
       val scroll=rememberScrollState()
       val fade=(scroll.value/70f).coerceIn(0f,1f)
       Column(Modifier.fillMaxSize().topFade(fade,28.dp).verticalScroll(scroll)
-       .padding(start=20.dp,end=20.dp,top=8.dp,bottom=10.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
+       .padding(start=20.dp,end=20.dp,top=20.dp,bottom=10.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
        if(!hasWords) Text("No eligible words. Download a selected JLPT level or adjust filters in Words.",color=MaterialTheme.colorScheme.error)
        when(tab) {
         TAB_POSITION -> {
-         Text("Position",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.SemiBold)
          Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
           linkedMapOf("Top" to 0f,"Middle" to 0.5f,"Bottom" to 1f).forEach {(name,target) ->
            PositionChoice(name,kotlin.math.abs(position-target)<0.01f,!busy,Modifier.weight(1f)) {
@@ -124,15 +123,12 @@ fun StudioScreen(vm: WallViewModel,s: WallSettings,bitmap: Bitmap?,error: String
           style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
         else -> {
-         Text("Export",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.SemiBold)
          StudioSwitch("Show clock guide",clockGuide,true) {clockGuide=it}
-         Text("The clock guide is a preview aid only and is never drawn into the wallpaper. Leave room for your phone\u2019s notifications and fingerprint sensor.",
-          style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-         OutlinedButton(onClick=export,enabled=!busy && bitmap!=null && hasWords && !dirty,shape=RoundedCornerShape(20.dp),
-          modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
+         OutlinedButton(onClick=export,enabled=!busy && bitmap!=null && hasWords && !dirty,shape=RoundedCornerShape(16.dp),
+          modifier=Modifier.fillMaxWidth().heightIn(min=52.dp)) {
           Icon(AppIcons.Download,null);Spacer(Modifier.width(8.dp));Text(if(dirty) "Save line layout before export" else "Export wallpaper PNG")
          }
-         Text("Position, text size and panel save when you release a slider. Save the line layout separately so automatic updates use it too.",
+         Text("The clock is a preview guide only and is never drawn into the wallpaper.",
           style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
        }
@@ -149,9 +145,15 @@ fun StudioScreen(vm: WallViewModel,s: WallSettings,bitmap: Bitmap?,error: String
  }
  BoxWithConstraints(modifier.fillMaxSize()) {
   if(maxWidth>maxHeight) Row(Modifier.fillMaxSize()) {
-   previewPane(Modifier.weight(0.44f).fillMaxHeight());controls(Modifier.weight(0.56f).fillMaxHeight(),true)
+   previewPane(Modifier.weight(0.44f).fillMaxHeight())
+   Column(Modifier.weight(0.56f).fillMaxHeight()) {
+    StudioTabs(tab,!busy) {tab=it}
+    controls(Modifier.fillMaxWidth().weight(1f),true)
+   }
   } else Column(Modifier.fillMaxSize()) {
-   previewPane(Modifier.weight(previewShare).fillMaxWidth());controls(Modifier.weight(1f-previewShare).fillMaxWidth(),false)
+   previewPane(Modifier.weight(previewShare).fillMaxWidth())
+   StudioTabs(tab,!busy) {tab=it}
+   controls(Modifier.weight(1f-previewShare).fillMaxWidth(),false)
   }
  }
  if(expanded) Dialog(onDismissRequest={expanded=false},properties=DialogProperties(usePlatformDefaultWidth=false)) {
@@ -191,9 +193,9 @@ private fun Modifier.topFade(amount: Float,height: Dp)=
  }
 @Composable
 private fun StudioTabs(selected: Int,enabled: Boolean,onSelect: (Int)->Unit) {
- Row(Modifier.fillMaxWidth().padding(start=16.dp,end=16.dp,top=16.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+ Row(Modifier.fillMaxWidth().padding(start=20.dp,end=20.dp,top=2.dp,bottom=10.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
   listOf("Position","Line designer","Export").forEachIndexed {index,label ->
-   val shape=RoundedCornerShape(18.dp);val height=Modifier.heightIn(min=44.dp);val padding=PaddingValues(horizontal=4.dp)
+   val shape=RoundedCornerShape(12.dp);val height=Modifier.heightIn(min=44.dp);val padding=PaddingValues(horizontal=4.dp)
    if(index==selected) Button(onClick={onSelect(index)},enabled=enabled,shape=shape,contentPadding=padding,modifier=Modifier.weight(1f).then(height)) {
     Text(label,maxLines=1,style=MaterialTheme.typography.labelLarge)
    } else OutlinedButton(onClick={onSelect(index)},enabled=enabled,shape=shape,contentPadding=padding,modifier=Modifier.weight(1f).then(height)) {
@@ -204,7 +206,7 @@ private fun StudioTabs(selected: Int,enabled: Boolean,onSelect: (Int)->Unit) {
 }
 @Composable
 private fun PositionChoice(label: String,selected: Boolean,enabled: Boolean,modifier: Modifier,onClick: ()->Unit) {
- val shape=RoundedCornerShape(16.dp);val height=Modifier.heightIn(min=48.dp);val padding=PaddingValues(horizontal=6.dp)
+ val shape=RoundedCornerShape(12.dp);val height=Modifier.heightIn(min=48.dp);val padding=PaddingValues(horizontal=6.dp)
  if(selected) Button(onClick=onClick,enabled=enabled,shape=shape,contentPadding=padding,modifier=modifier.then(height)) {
   Text(label,maxLines=1,style=MaterialTheme.typography.titleSmall)
  } else OutlinedButton(onClick=onClick,enabled=enabled,shape=shape,contentPadding=padding,modifier=modifier.then(height)) {
@@ -230,9 +232,24 @@ private fun WallpaperPreview(bitmap: Bitmap?,s: WallSettings,word: Word,error: S
  }
 }
 /**
- * Zooms into the text band of the wallpaper for the line designer: the wallpaper is laid out
- * larger than the viewport and shifted so the text block stays centred, and the zoom eases off
- * as lines are added so a four-line layout still fits.
+ * Height of the rendered text block, mirroring WallpaperRenderer.drawText so the zoomed
+ * preview can crop around the text instead of guessing where it landed. The renderer scales
+ * everything from unit = width/360, and StaticLayout lines run about 1.35x their text size.
+ */
+private fun textBlockHeight(s: WallSettings,word: Word,width: Dp): Dp {
+ val t=s.typography
+ val unit=width.value/360f
+ val rows=t.rows.take(t.lineCount).filter {t.text(it,word).isNotBlank()}
+ if(rows.isEmpty()) return 0.dp
+ val scale=s.scale.coerceIn(0.75f,1.4f)
+ val text=rows.sumOf {(it.size.coerceIn(12f,60f)*unit*scale*1.35f).toDouble()}.toFloat()
+ return (text+t.spacing.coerceIn(0f,24f)*unit*(rows.size-1)+20f*unit*2f).dp
+}
+/**
+ * Zooms into the text band for the line designer. The wallpaper is laid out larger than the
+ * viewport with requiredSize, because Modifier.size would be coerced back down by the parent,
+ * and then shifted so the text block sits in the middle of the band. The zoom is chosen from
+ * the block height, so two lines fill the band without four lines overflowing it.
  */
 @Composable
 private fun ZoomedPreview(bitmap: Bitmap?,s: WallSettings,word: Word,error: String,enabled: Boolean,
@@ -242,13 +259,16 @@ private fun ZoomedPreview(bitmap: Bitmap?,s: WallSettings,word: Word,error: Stri
   if(error.isNotEmpty()) Text(error,Modifier.padding(16.dp),color=MaterialTheme.colorScheme.error)
   else if(bitmap==null) CircularProgressIndicator()
   else BoxWithConstraints(Modifier.fillMaxSize()) {
-   val zoom=when(s.typography.lineCount) {2->2.1f;3->1.9f;else->1.7f}
+   val unzoomed=textBlockHeight(s,word,maxWidth)
+   val zoom=if(unzoomed.value<=0f) 1.6f else (maxHeight*0.72f/unzoomed).coerceIn(1.15f,2.6f)
    val width=maxWidth*zoom
    val height=width*bitmap.height/bitmap.width
-   val slack=(height-maxHeight).coerceAtLeast(0.dp)
-   val offset=(height*s.position.coerceIn(0f,1f)-maxHeight/2).coerceIn(0.dp,slack)
-   Box(Modifier.size(width,height).offset(x=(maxWidth-width)/2,y=-offset)) {
-    Image(bitmap.asImageBitmap(),null,Modifier.fillMaxSize(),contentScale=ContentScale.FillBounds)
+   val block=unzoomed*zoom
+   val margin=(width.value*22f/360f).dp
+   val top=margin+(height-block-margin*2).coerceAtLeast(0.dp)*s.position.coerceIn(0f,1f)
+   val offset=(top+block/2-maxHeight/2).coerceIn(0.dp,(height-maxHeight).coerceAtLeast(0.dp))
+   Box(Modifier.requiredSize(width,height).offset(x=(maxWidth-width)/2,y=-offset)) {
+    Image(bitmap.asImageBitmap(),null,Modifier.fillMaxSize().blur(16.dp),contentScale=ContentScale.FillBounds)
     Canvas(Modifier.fillMaxSize().semantics {contentDescription="Text preview: ${word.written}, ${word.reading}, ${Romaji.display(word)}, ${word.meaning}"}) {
      drawIntoCanvas {renderer.drawText(it.nativeCanvas,s,word,size.width.toInt().coerceAtLeast(1),size.height.toInt().coerceAtLeast(1))}
     }
