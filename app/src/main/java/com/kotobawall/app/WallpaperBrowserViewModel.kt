@@ -11,8 +11,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+// Picsum is the default source because it needs no API key, so the grid has photos on first open.
 data class WallpaperBrowseState(
- val provider: WallpaperProvider=WallpaperProvider.PEXELS,val query: String="",val orientation: String="portrait",
+ val provider: WallpaperProvider=WallpaperProvider.PICSUM,val query: String="",val orientation: String="portrait",
  val page: Int=1,val items: List<OnlineWallpaper> = emptyList(),val loading: Boolean=false,
  val loaded: Boolean=false,val hasNext: Boolean=false,val error: String=""
 )
@@ -58,8 +59,9 @@ class WallpaperBrowserViewModel(app: Application): AndroidViewModel(app) {
   requestJob=viewModelScope.launch {
    try {
     val cached=pages[request]?.takeIf {System.currentTimeMillis()-it.first in 0..86_400_000L}?.second
+    // Picsum pages are filtered, so a full page is no longer 12 items; keep paging while photos arrive.
     val result=cached ?: if(request.provider==WallpaperProvider.PEXELS) PexelsClient.list(keyForRequest,request.query,request.page,request.orientation)
-     else WallpaperCatalog.list(page).let {PhotoPage(it,it.size==12 && page<1000)}
+     else WallpaperCatalog.list(page).let {PhotoPage(it,it.isNotEmpty() && page<1000)}
     if(ticket!=generation) return@launch
     if(cached==null) {if(pages.size>=24) pages.remove(pages.keys.first());pages[request]=System.currentTimeMillis() to result}
     _state.value=_state.value.copy(items=result.items,loading=false,loaded=true,hasNext=result.hasNext && page<1000,

@@ -25,6 +25,11 @@ object WallpaperCatalog {
  // Green grassfield by Paul Jarvis: unsplash.com/photos/Cm7oKel-X2Q. Picsum republishes it as id 11,
  // so the app can fetch it over the existing no-key path instead of shipping a photo inside the APK.
  val DEFAULT=OnlineWallpaper("11","Paul Jarvis",2500,1667,"https://unsplash.com/photos/Cm7oKel-X2Q")
+ // Picsum's ids 0-9 are the old Unsplash sample set: desks, laptops and studio shots that make poor
+ // lock screens, and they crowd out the first page of results.
+ private val excludedAuthors=setOf("alejandro escamilla")
+ // Requested with room to spare, because filtering can drop most of a page near the start of the feed.
+ private const val PAGE=24
  fun parse(json: String): List<OnlineWallpaper> {
   val data=JSONArray(json);check(data.length()<=100) {"Unexpected gallery response."}
   return List(data.length()) {i ->
@@ -36,9 +41,12 @@ object WallpaperCatalog {
    OnlineWallpaper(id,j.optString("author","Unknown photographer").take(120),w,h,source)
   }.distinctBy {it.id}
  }
+ /** Drops photographers excluded from browsing. Kept separate from parse so it can be tested directly. */
+ fun eligible(items: List<OnlineWallpaper>): List<OnlineWallpaper> =
+  items.filterNot {it.author.trim().lowercase() in excludedAuthors}
  suspend fun list(page: Int): List<OnlineWallpaper> = withContext(Dispatchers.IO) {
   require(page in 1..1000)
-  parse(String(read("https://picsum.photos/v2/list?page=$page&limit=12",256*1024),Charsets.UTF_8))
+  eligible(parse(String(read("https://picsum.photos/v2/list?page=$page&limit=$PAGE",256*1024),Charsets.UTF_8)))
  }
  suspend fun image(item: OnlineWallpaper): ByteArray = withContext(Dispatchers.IO) {read(item.imageUrl,16*1024*1024)}
  private suspend fun read(address: String,limit: Int): ByteArray {

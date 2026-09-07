@@ -78,6 +78,10 @@ class WallViewModel(app: Application): AndroidViewModel(app) {
    catch(e: Exception) {_catalog.value=_catalog.value.copy(loading=false,error=e.message ?: "Could not load photos. Try again.")}
   }
  }
+ /** Adds a browsed photo to the offline collection and leaves the current selection alone. */
+ fun collectOnlineWallpaper(item: OnlineWallpaper)=operation("Saved to your collection") {
+  repo.saveOnlineWallpaper(item)
+ }
  fun saveOnlineWallpaper(item: OnlineWallpaper,onSelected: ()->Unit)=operation("Wallpaper saved. Preview it before applying.") {
   val path=repo.saveOnlineWallpaper(item);repo.chooseWallpaper(path);onSelected()
  }
