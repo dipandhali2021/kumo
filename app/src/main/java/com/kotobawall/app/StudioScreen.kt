@@ -135,6 +135,9 @@ fun StudioScreen(vm: WallViewModel,s: WallSettings,bitmap: Bitmap?,error: String
   }
  }
  BoxWithConstraints(modifier.fillMaxSize()) {
+  // BoxWithConstraintsScope and ColumnScope share the LayoutScopeMarker DSL marker, so the
+  // available height has to be captured here to stay reachable inside the Column below.
+  val screenHeight=maxHeight
   if(maxWidth>maxHeight) Row(Modifier.fillMaxSize()) {
    previewPane(Modifier.weight(0.44f).fillMaxHeight())
    Column(Modifier.weight(0.56f).fillMaxHeight()) {
@@ -145,7 +148,7 @@ fun StudioScreen(vm: WallViewModel,s: WallSettings,bitmap: Bitmap?,error: String
    // The sheet is measured first and wraps its controls; the preview keeps everything left over.
    previewPane(Modifier.weight(1f).fillMaxWidth())
    StudioTabs(tab,!busy) {tab=it}
-   controls(Modifier.fillMaxWidth().heightIn(max=maxHeight*0.62f),false)
+   controls(Modifier.fillMaxWidth().heightIn(max=screenHeight*0.62f),false)
   }
  }
  if(expanded) Dialog(onDismissRequest={expanded=false},properties=DialogProperties(usePlatformDefaultWidth=false)) {
