@@ -84,7 +84,7 @@ fun StudioScreen(vm: WallViewModel,s: WallSettings,bitmap: Bitmap?,error: String
     IconButton(onClick={expanded=true}) {Icon(AppIcons.OpenInFull,"Expand wallpaper preview")}
    }
    Spacer(Modifier.height(4.dp))
-   if(tab==TAB_LINES) ZoomedPreview(bitmap,live,word,error,!busy,Modifier.fillMaxWidth().weight(1f),{step(-1)},{step(1)})
+   if(tab==TAB_LINES) LineTextPreview(bitmap,live,word,error,!busy,Modifier.fillMaxWidth().weight(1f),{step(-1)},{step(1)})
    else WallpaperPreview(bitmap,live,word,error,clockGuide,Modifier.fillMaxWidth().weight(1f))
   }
  }
@@ -111,7 +111,7 @@ fun StudioScreen(vm: WallViewModel,s: WallSettings,bitmap: Bitmap?,error: String
        }
        TAB_LINES -> {
         TypographyEditor(typography,!busy,dirty,onChange={vm.editTypography(it)},onSave={vm.saveTypography(typography)})
-        Text("The arrows on the preview step through your words, so you can check how each line looks before applying.",
+        Text("The preview frames just your text lines. The arrows step through your words, so you can check each one before applying.",
          style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
        }
        else -> {
@@ -218,47 +218,45 @@ private fun WallpaperPreview(bitmap: Bitmap?,s: WallSettings,word: Word,error: S
  }
 }
 /**
- * Height of the rendered text block, mirroring WallpaperRenderer.drawText so the zoomed
- * preview can crop around the text instead of guessing where it landed. The renderer scales
- * everything from unit = width/360, and StaticLayout lines run about 1.35x their text size.
- */
-private fun textBlockHeight(s: WallSettings,word: Word,width: Dp): Dp {
- val t=s.typography
- val unit=width.value/360f
- val rows=t.rows.take(t.lineCount).filter {t.text(it,word).isNotBlank()}
- if(rows.isEmpty()) return 0.dp
- val scale=s.scale.coerceIn(0.75f,1.4f)
- val text=rows.sumOf {(it.size.coerceIn(12f,60f)*unit*scale*1.35f).toDouble()}.toFloat()
- return (text+t.spacing.coerceIn(0f,24f)*unit*(rows.size-1)+20f*unit*2f).dp
-}
-/**
- * Zooms into the text band for the line designer. The wallpaper is laid out larger than the
- * viewport with requiredSize, because Modifier.size would be coerced back down by the parent,
- * and then shifted so the text block sits in the middle of the band. The zoom is chosen from
- * the block height, so two lines fill the band without four lines overflowing it.
+ * Line designer preview.
+ *
+ * Everything happens inside one canvas in pixel space: the wallpaper is measured at the canvas
+ * width, the renderer reports where it will put the text with textBounds, and that block is then
+ * centred and scaled into the band. Nothing is laid out oversized and offset, so there are no
+ * parent constraints to coerce and no mirrored copy of the renderer's maths to drift out of sync.
+ *
+ * The zoom never exceeds the width of the text column, which is what keeps left, centre and right
+ * aligned rows inside the frame; it is capped again by the band height so four large lines still fit.
  */
 @Composable
-private fun ZoomedPreview(bitmap: Bitmap?,s: WallSettings,word: Word,error: String,enabled: Boolean,
+private fun LineTextPreview(bitmap: Bitmap?,s: WallSettings,word: Word,error: String,enabled: Boolean,
  modifier: Modifier,onPrevious: ()->Unit,onNext: ()->Unit) {
  val context=LocalContext.current;val renderer=remember(context) {WallpaperRenderer(context)}
+ val t=s.typography
+ val empty=t.rows.take(t.lineCount).none {t.text(it,word).isNotBlank()}
  Box(modifier.clip(RoundedCornerShape(22.dp)).background(Color.Black),contentAlignment=Alignment.Center) {
   if(error.isNotEmpty()) Text(error,Modifier.padding(16.dp),color=MaterialTheme.colorScheme.error)
   else if(bitmap==null) CircularProgressIndicator()
-  else BoxWithConstraints(Modifier.fillMaxSize()) {
-   val unzoomed=textBlockHeight(s,word,maxWidth)
-   val zoom=if(unzoomed.value<=0f) 1.6f else (maxHeight*0.72f/unzoomed).coerceIn(1.15f,2.6f)
-   val width=maxWidth*zoom
-   val height=width*bitmap.height/bitmap.width
-   val block=unzoomed*zoom
-   val margin=(width.value*22f/360f).dp
-   val top=margin+(height-block-margin*2).coerceAtLeast(0.dp)*s.position.coerceIn(0f,1f)
-   val offset=(top+block/2-maxHeight/2).coerceIn(0.dp,(height-maxHeight).coerceAtLeast(0.dp))
-   Box(Modifier.requiredSize(width,height).offset(x=(maxWidth-width)/2,y=-offset)) {
-    Image(bitmap.asImageBitmap(),null,Modifier.fillMaxSize().blur(16.dp),contentScale=ContentScale.FillBounds)
-    Canvas(Modifier.fillMaxSize().semantics {contentDescription="Text preview: ${word.written}, ${word.reading}, ${Romaji.display(word)}, ${word.meaning}"}) {
-     drawIntoCanvas {renderer.drawText(it.nativeCanvas,s,word,size.width.toInt().coerceAtLeast(1),size.height.toInt().coerceAtLeast(1))}
+  else {
+   Image(bitmap.asImageBitmap(),null,Modifier.fillMaxSize().blur(18.dp),contentScale=ContentScale.Crop)
+   Canvas(Modifier.fillMaxSize().semantics {contentDescription="Text preview: ${word.written}, ${word.reading}, ${Romaji.display(word)}, ${word.meaning}"}) {
+    val w=size.width.toInt().coerceAtLeast(1)
+    val h=(size.width*bitmap.height/bitmap.width).toInt().coerceAtLeast(1)
+    val bounds=renderer.textBounds(s,word,w,h)
+    if(bounds!=null) {
+     val zoom=minOf(size.width/bounds.width.coerceAtLeast(1f),size.height*0.86f/bounds.height.coerceAtLeast(1f)).coerceIn(1f,2.4f)
+     drawIntoCanvas {canvas ->
+      val native=canvas.nativeCanvas
+      val restore=native.save()
+      native.translate(size.width/2,size.height/2)
+      native.scale(zoom,zoom)
+      native.translate(-(bounds.left+bounds.width/2),-(bounds.top+bounds.height/2))
+      renderer.drawText(native,s,word,w,h)
+      native.restoreToCount(restore)
+     }
     }
    }
+   if(empty) Text("Add text to a line to preview it here.",Modifier.padding(24.dp),color=Color.White)
    IconButton(onClick=onPrevious,enabled=enabled,modifier=Modifier.align(Alignment.CenterStart).padding(start=2.dp)) {
     Icon(AppIcons.NavigateBefore,"Preview previous word",tint=Color.White)
    }

@@ -13,6 +13,12 @@ import java.io.File
 import java.util.Locale
 import kotlin.math.max
 
+/**
+ * Where the text block actually lands inside a rendered wallpaper, in canvas pixels.
+ * `left`/`width` describe the text column, which is narrower than the dark panel.
+ */
+data class TextBounds(val left: Float,val top: Float,val width: Float,val height: Float)
+
 class WallpaperRenderer(private val context: Context) {
  companion object {
   val palettes = linkedMapOf(
@@ -74,12 +80,19 @@ class WallpaperRenderer(private val context: Context) {
    Bitmap.createBitmap(raw,0,0,raw.width,raw.height,m,true).also { if(it !== raw) raw.recycle() }
   } catch(e: Exception) { raw.recycle(); throw e }
  }
- fun drawText(canvas: Canvas,s: WallSettings,word: Word,width: Int,height: Int) {
+ /** One measured text block: the laid-out lines plus every number drawText needs to place them. */
+ private class Block(val lines: List<StaticLayout>,val unit: Float,val margin: Float,val padding: Float,
+  val gap: Float,val fit: Float,val total: Float,val top: Float,val textWidth: Int)
+ /**
+  * Measures the block once. drawText and textBounds both go through here, so a preview can never
+  * disagree with what is actually drawn.
+  */
+ private fun layout(s: WallSettings,word: Word,width: Int,height: Int): Block? {
   val unit=width/360f;val margin=22f*unit;val padding=20f*unit
   val textWidth=(width-2*(margin+padding)).toInt().coerceAtLeast(1)
   val t=s.typography
   val resolved=t.rows.take(t.lineCount).map { it to t.text(it,word) }.filter { it.second.isNotBlank() }
-  if(resolved.isEmpty()) return
+  if(resolved.isEmpty()) return null
   val lines=resolved.map { (row,text) ->
    val p=TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
     textSize=row.size.coerceIn(12f,60f)*unit*s.scale.coerceIn(0.75f,1.4f)
@@ -102,17 +115,28 @@ class WallpaperRenderer(private val context: Context) {
   val natural=lines.sumOf {it.height}.toFloat()+gap*(lines.size-1)+padding*2
   val fit=minOf(1f,(height-2*margin).coerceAtLeast(1f)/natural)
   val total=natural*fit
-  val top=WallMath.top(height,total,s.position,margin)
+  return Block(lines,unit,margin,padding,gap,fit,total,WallMath.top(height,total,s.position,margin),textWidth)
+ }
+ fun drawText(canvas: Canvas,s: WallSettings,word: Word,width: Int,height: Int) {
+  val b=layout(s,word,width,height) ?: return
   val panel=Paint(Paint.ANTI_ALIAS_FLAG).apply {color=Color.argb((s.panel.coerceIn(0f,0.8f)*255).toInt(),0,0,0)}
-  canvas.drawRoundRect(RectF(margin,top,width-margin,top+total),18f*unit,18f*unit,panel)
+  canvas.drawRoundRect(RectF(b.margin,b.top,width-b.margin,b.top+b.total),18f*b.unit,18f*b.unit,panel)
   canvas.save()
-  canvas.translate((width-width*fit)/2,top)
-  canvas.scale(fit,fit)
-  var y=padding
-  lines.forEach {layout ->
-   canvas.save();canvas.translate(margin+padding,y);layout.draw(canvas);canvas.restore()
-   y+=layout.height+gap
+  canvas.translate((width-width*b.fit)/2,b.top)
+  canvas.scale(b.fit,b.fit)
+  var y=b.padding
+  b.lines.forEach {layout ->
+   canvas.save();canvas.translate(b.margin+b.padding,y);layout.draw(canvas);canvas.restore()
+   y+=layout.height+b.gap
   }
   canvas.restore()
+ }
+ /**
+  * Exact geometry of the block drawText would draw at this canvas size, or null when every line is
+  * empty. Previews use this to frame the text instead of re-deriving the renderer's maths.
+  */
+ fun textBounds(s: WallSettings,word: Word,width: Int,height: Int): TextBounds? {
+  val b=layout(s,word,width,height) ?: return null
+  return TextBounds((width-width*b.fit)/2+(b.margin+b.padding)*b.fit,b.top,b.textWidth*b.fit,b.total)
  }
 }
