@@ -5,6 +5,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -15,19 +16,23 @@ object JlptClient {
  const val HOME="https://jlpt-vocab-api.vercel.app/"
  fun parse(raw: String,level: Int): List<Word> {
   require(level in 1..5)
-  val data=JSONArray(raw)
+  val trimmed=raw.trim()
+  // /api/words/all returns a bare array; the paginated /api/words wraps it in {"words":[...]}.
+  val data=if(trimmed.startsWith("{")) JSONObject(trimmed).optJSONArray("words") ?: JSONArray() else JSONArray(trimmed)
   check(data.length() in 1..12000) {"The vocabulary service returned an empty or oversized list."}
   val result=List(data.length()) {i ->
    val j=data.getJSONObject(i)
    val written=j.optString("word").trim()
    val reading=j.optString("furigana").ifBlank {j.optString("hiragana")}.trim()
    val meaning=j.optString("meaning").trim()
+   // The service supplies romaji, so keep it verbatim instead of transliterating the kana ourselves.
+   val romaji=j.optString("romaji").trim()
    check(j.optInt("level",-1)==level && written.isNotBlank() && meaning.isNotBlank()) {"Unexpected vocabulary format. Cached words were kept."}
-   check(written.length<=200 && reading.length<=300 && meaning.length<=4000) {"Vocabulary entry too large."}
+   check(written.length<=200 && reading.length<=300 && meaning.length<=4000 && romaji.length<=300) {"Vocabulary entry too large."}
    val kana=reading.ifBlank {written}
    val identity="$level\u0000$written\u0000$kana"
    val id=MessageDigest.getInstance("SHA-256").digest(identity.toByteArray(Charsets.UTF_8)).joinToString("") {"%02x".format(it.toInt() and 255)}
-   Word("jlpt:$id",written,kana,meaning,"JLPT N$level",level)
+   Word("jlpt:$id",written,kana,meaning,"JLPT N$level",level,romaji)
   }
   return result.distinctBy {it.id}
  }

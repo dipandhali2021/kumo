@@ -15,6 +15,8 @@ class VocabularyCache(context: Context) {
  fun save(level: Int,words: List<Word>) {
   val json=JSONArray().apply {words.forEach {w ->put(JSONObject().apply {
    put("word",w.written);put("furigana",w.reading);put("meaning",w.meaning);put("level",w.level)
+   // Store the service's romaji too, otherwise a reload silently falls back to transliteration.
+   put("romaji",w.romaji)
   })} }.toString().toByteArray(Charsets.UTF_8)
   check(json.size<=6*1024*1024) {"Vocabulary cache too large."}
   val destination=file(level);val output=destination.startWrite()
