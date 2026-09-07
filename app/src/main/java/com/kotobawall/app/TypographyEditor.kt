@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 
@@ -20,7 +21,7 @@ fun TypographyEditor(value: Typography,enabled: Boolean,dirty: Boolean,onChange:
  val row=value.rows[index]
  fun update(r: TextRow) {onChange(value.withRow(index,r))}
  Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
-  Text("Line designer",style=MaterialTheme.typography.titleMedium)
+  Text("Line designer",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.SemiBold)
   Text("Choose what each line says and how it looks. Save the layout to use it for automatic updates.",style=MaterialTheme.typography.bodyMedium)
   Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
    listOf(2,3,4).forEach {count -> FilterChip(selected=value.lineCount==count,onClick={onChange(value.copy(lineCount=count))},enabled=enabled,label={Text("$count lines")})}
@@ -35,36 +36,35 @@ fun TypographyEditor(value: Typography,enabled: Boolean,dirty: Boolean,onChange:
   Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
    (0 until value.lineCount).forEach {i -> FilterChip(selected=index==i,onClick={selected=i},label={Text("Line ${i+1}")})}
   }
-  OutlinedCard {
-   Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-    Text("Line ${index+1}",style=MaterialTheme.typography.titleMedium)
-    ChoiceMenu("Content preset",Typography.presets.entries.firstOrNull {it.value==row.template}?.key ?: "Custom text",Typography.presets.keys.toList(),enabled) {
-     update(row.copy(template=Typography.presets.getValue(it)))
-    }
-    OutlinedTextField(value=row.template,onValueChange={update(row.copy(template=it.take(160)))},enabled=enabled,
-     modifier=Modifier.fillMaxWidth(),singleLine=true,label={Text("Line content / custom text")},
-     supportingText={Text("Use {word}, {reading}, {romaji}, {meaning}, or your own text. Tokens change with each vocabulary word.")})
-    ChoiceMenu("Font",row.font,Typography.fonts,enabled) {update(row.copy(font=it))}
-    ChoiceMenu("Line alignment",row.alignment,listOf("Default")+Typography.alignments,enabled) {update(row.copy(alignment=it))}
-    EditorSlider("Line font size",row.size,12f..60f,enabled) {update(row.copy(size=it))}
-    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-     Text("Bold",Modifier.weight(1f));Switch(checked=row.bold,onCheckedChange={update(row.copy(bold=it))},enabled=enabled)
-    }
-    var hex by remember(index,row.color) {mutableStateOf(row.color)}
-    val valid=hex.matches(Regex("#[0-9a-fA-F]{6}"))
-    OutlinedTextField(value=hex,onValueChange={next -> hex=next.take(7);if(hex.matches(Regex("#[0-9a-fA-F]{6}"))) update(row.copy(color=hex))},
-     enabled=enabled,label={Text("Text color · #RRGGBB")},singleLine=true,isError=!valid,modifier=Modifier.fillMaxWidth(),
-     supportingText={Text(if(valid) "Choose a color that contrasts with the background." else "Enter # and six hex digits. The last valid color remains in use.")})
-    Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-     linkedMapOf("White" to "#FFFFFF","Cream" to "#FFF1CE","Blue" to "#BADDFF","Black" to "#161616").forEach {(name,color) ->
-      FilterChip(selected=row.color.equals(color,true),onClick={hex=color;update(row.copy(color=color))},enabled=enabled,label={Text(name)})
-     }
+  HorizontalDivider()
+  Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+   Text("Line ${index+1}",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold)
+   ChoiceMenu("Content preset",Typography.presets.entries.firstOrNull {it.value==row.template}?.key ?: "Custom text",Typography.presets.keys.toList(),enabled) {
+    update(row.copy(template=Typography.presets.getValue(it)))
+   }
+   OutlinedTextField(value=row.template,onValueChange={update(row.copy(template=it.take(160)))},enabled=enabled,
+    modifier=Modifier.fillMaxWidth(),singleLine=true,label={Text("Line content / custom text")},
+    supportingText={Text("Use {word}, {reading}, {romaji}, {meaning}, or your own text. Tokens change with each vocabulary word.")})
+   ChoiceMenu("Font",row.font,Typography.fonts,enabled) {update(row.copy(font=it))}
+   ChoiceMenu("Line alignment",row.alignment,listOf("Default")+Typography.alignments,enabled) {update(row.copy(alignment=it))}
+   EditorSlider("Line font size",row.size,12f..60f,enabled) {update(row.copy(size=it))}
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+    Text("Bold",Modifier.weight(1f));Switch(checked=row.bold,onCheckedChange={update(row.copy(bold=it))},enabled=enabled)
+   }
+   var hex by remember(index,row.color) {mutableStateOf(row.color)}
+   val valid=hex.matches(Regex("#[0-9a-fA-F]{6}"))
+   OutlinedTextField(value=hex,onValueChange={next -> hex=next.take(7);if(hex.matches(Regex("#[0-9a-fA-F]{6}"))) update(row.copy(color=hex))},
+    enabled=enabled,label={Text("Text color \u00b7 #RRGGBB")},singleLine=true,isError=!valid,modifier=Modifier.fillMaxWidth(),
+    supportingText={Text(if(valid) "Choose a color that contrasts with the background." else "Enter # and six hex digits. The last valid color remains in use.")})
+   Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+    linkedMapOf("White" to "#FFFFFF","Cream" to "#FFF1CE","Blue" to "#BADDFF","Black" to "#161616").forEach {(name,color) ->
+     FilterChip(selected=row.color.equals(color,true),onClick={hex=color;update(row.copy(color=color))},enabled=enabled,label={Text(name)})
     }
    }
   }
   Text("Each slot is one visual line. Long content shrinks to fit; very long text is shortened with an ellipsis. Empty slots are hidden. Gothic JP and Mincho JP are bundled Japanese fonts, with separate regular and bold files.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-  Text("Romaji comes from the kana reading and is written on your device. Starter words use curated spellings such as konnichiwa; downloaded JLPT words keep kana vowel pairs literal, so がっこう reads gakkou.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-  Button(onClick=onSave,enabled=enabled && dirty,modifier=Modifier.fillMaxWidth()) {Text(if(dirty) "Save line layout" else "Line layout saved")}
+  Text("Romaji comes from the kana reading and is written on your device. Starter words use curated spellings such as konnichiwa; downloaded JLPT words keep kana vowel pairs literal, so \u304c\u3063\u3053\u3046 reads gakkou.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+  Button(onClick=onSave,enabled=enabled && dirty,shape=RoundedCornerShape(20.dp),modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {Text(if(dirty) "Save line layout" else "Line layout saved")}
   TextButton(onClick={onChange(Typography())},enabled=enabled) {Text("Reset line layout")}
  }
 }
@@ -74,7 +74,7 @@ private fun ChoiceMenu(label: String,selected: String,options: List<String>,enab
  Column {
   Text(label,style=MaterialTheme.typography.labelLarge)
   Box {
-   OutlinedButton(onClick={open=true},enabled=enabled,modifier=Modifier.fillMaxWidth()) {
+   OutlinedButton(onClick={open=true},enabled=enabled,shape=RoundedCornerShape(16.dp),modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
     Text(selected,Modifier.weight(1f));Icon(AppIcons.ArrowDropDown,null)
    }
    DropdownMenu(expanded=open,onDismissRequest={open=false}) {
@@ -86,7 +86,10 @@ private fun ChoiceMenu(label: String,selected: String,options: List<String>,enab
 @Composable
 private fun EditorSlider(label: String,value: Float,range: ClosedFloatingPointRange<Float>,enabled: Boolean,onChange: (Float)->Unit) {
  Column {
-  Row {Text(label,Modifier.weight(1f));Text(value.roundToInt().toString())}
+  Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+   Text(label,Modifier.weight(1f),style=MaterialTheme.typography.titleSmall,fontWeight=FontWeight.SemiBold)
+   Text(value.roundToInt().toString(),style=MaterialTheme.typography.titleSmall,fontWeight=FontWeight.SemiBold,color=MaterialTheme.colorScheme.onSurfaceVariant)
+  }
   Slider(value=value,onValueChange=onChange,valueRange=range,enabled=enabled,modifier=Modifier.semantics {contentDescription=label})
  }
 }
