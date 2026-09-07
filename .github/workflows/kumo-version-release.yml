@@ -1,0 +1,77 @@
+name: Kumo version release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/build.gradle.kts'
+      - 'docs/releases/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: kumo-version-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read the app version
+        id: version
+        shell: bash
+        run: |
+          set -e
+
+          VERSION=$(grep -oE 'versionName[[:space:]]*=[[:space:]]*"[^"]+"' app/build.gradle.kts \
+            | head -1 \
+            | sed -E 's/.*"([^"]+)".*/\1/')
+
+          if [ -z "$VERSION" ]; then
+            echo "versionName was not found in app/build.gradle.kts."
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Detected version $VERSION"
+
+      - name: Publish the release when the tag is new
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set -e
+
+          # Never rewrite history: an existing tag or release is left untouched.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; nothing to publish."
+            exit 0
+          fi
+
+          NOTES="docs/releases/$TAG.md"
+
+          if [ -f "$NOTES" ]; then
+            gh release create "$TAG" \
+              --title "Kumo $VERSION" \
+              --notes-file "$NOTES" \
+              --target "$GITHUB_SHA"
+          else
+            gh release create "$TAG" \
+              --title "Kumo $VERSION" \
+              --generate-notes \
+              --target "$GITHUB_SHA"
+          fi
+
+          echo "Published $TAG" >> "$GITHUB_STEP_SUMMARY"
