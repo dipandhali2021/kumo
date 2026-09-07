@@ -18,7 +18,8 @@ object AppIcons {
  val AutoAwesome: ImageVector by lazy {icon("AutoAwesome","M12 3 L14.5 9.5 L21 12 L14.5 14.5 L12 21 L9.5 14.5 L3 12 L9.5 9.5 Z M20 2 V6 M18 4 H22")}
  val Info: ImageVector by lazy {icon("Info","M12 3 A9 9 0 1 1 12 21 A9 9 0 1 1 12 3 M12 11 V17 M12 7 V7.2")}
  val MenuBook: ImageVector by lazy {icon("MenuBook","M12 6 C9 3 5 3 2 4 V20 C5 19 9 19 12 22 C15 19 19 19 22 20 V4 C19 3 15 3 12 6 Z M12 6 V22 M5 8 H8 M16 8 H19 M5 12 H8 M16 12 H19")}
- val PhonelinkLock: ImageVector by lazy {icon("PhonelinkLock","M7 2 H17 V22 H7 Z M10 17 V12 H15 V17 Z M11 12 V10 A1.5 1.5 0 0 1 14 10 V12")}
+ // Rounded handset with the lock centered on the screen and a home bar, so it stays balanced at 24dp.
+ val PhonelinkLock: ImageVector by lazy {icon("PhonelinkLock","M9 2 H15 A2 2 0 0 1 17 4 V20 A2 2 0 0 1 15 22 H9 A2 2 0 0 1 7 20 V4 A2 2 0 0 1 9 2 Z M9.5 11 H14.5 V16 H9.5 Z M10.5 11 V9.5 A1.5 1.5 0 0 1 13.5 9.5 V11 M12 13 V14.5 M11 19.5 H13")}
  val PhotoLibrary: ImageVector by lazy {icon("PhotoLibrary","M7 3 H21 V17 H7 Z M3 7 V21 H17 M7 15 L11 10 L14 13 L17 9 L21 14 M16 6 V6.2")}
  val Schedule: ImageVector by lazy {icon("Schedule","M12 3 A9 9 0 1 1 12 21 A9 9 0 1 1 12 3 M12 7 V12 L16 14")}
  val Wallpaper: ImageVector by lazy {icon("Wallpaper","M3 8 V3 H8 M16 3 H21 V8 M21 16 V21 H16 M8 21 H3 V16 M4 17 L9 11 L13 15 L16 12 L20 17 M16 7 V7.2")}
