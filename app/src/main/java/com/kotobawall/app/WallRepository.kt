@@ -31,7 +31,7 @@ class WallRepository(private val context: Context) {
  private val starter: List<Word> = context.assets.open("words.json").bufferedReader().use {reader ->
   val a=JSONArray(reader.readText())
   List(a.length()) {i ->a.getJSONObject(i).let {
-   Word(it.getString("id"),it.getString("written"),it.getString("reading"),it.getString("meaning"),it.getString("category"))
+   Word(it.getString("id"),it.getString("written"),it.getString("reading"),it.getString("meaning"),it.getString("category"),romaji=it.optString("romaji"))
   }}
  }
  private val cache=VocabularyCache(context)

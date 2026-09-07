@@ -136,8 +136,9 @@ fun KotobaApp(vm: WallViewModel=viewModel()) {
   val licenses by produceState("") {value=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
    listOf("gothic_OFL.txt","mincho_OFL.txt").joinToString("\n\n") {name ->context.assets.open("fonts/$name").bufferedReader().use {it.readText()}}
   }}
-  AlertDialog(onDismissRequest={showAbout=false},title={Text("Kumo 1.6 · 雲")},text={Column(Modifier.heightIn(max=380.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+  AlertDialog(onDismissRequest={showAbout=false},title={Text("Kumo 1.7 · 雲")},text={Column(Modifier.heightIn(max=380.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
    Text("50 offline starter entries, plus optional JLPT N5–N1 downloads. No account or analytics. Your photos and settings are not uploaded. The vocabulary provider receives your IP address and requested level when you download.")
+   Text("Romaji: transliterated on your device from the kana reading using modified Hepburn, with macrons for katakana long vowels. Starter words carry curated spellings such as konnichiwa; downloaded words keep kana vowel pairs literal, so がっこう reads gakkou.")
    Text("Vocabulary: wkei / JLPT Vocabulary API, based on Jonathan Waller’s Tanos study lists. Levels are estimates, not an official JLPT syllabus. Readings and meanings may contain errors.")
    Text("Japanese fonts: Zen Kaku Gothic New and Zen Old Mincho, bundled under SIL Open Font License 1.1. Interface icons: original compact Kumo vector set.")
    Text("Online photos: Pexels (default) and Unsplash via Lorem Picsum. Pexels receives your search terms and API key. Browsing and saving contact the provider and CDN. Keys are entered on-device and encrypted with Android Keystore, not bundled in the APK. Saved backgrounds and Last used stay in private app storage. Coil image loader: Apache 2.0.")

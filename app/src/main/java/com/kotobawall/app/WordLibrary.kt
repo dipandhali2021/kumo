@@ -23,7 +23,9 @@ fun WordLibrary(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: Modifi
  var query by rememberSaveable {mutableStateOf("")}
  val uri=LocalUriHandler.current
  val pool=remember(library,s.levels,s.includeStarter,s.favorites,s.favoritesOnly) {library.filter {WordPolicy.eligible(it,s)}}
- val matches=remember(pool,query) {pool.filter {w ->listOf(w.written,w.reading,w.meaning).any {it.contains(query.trim(),true)}}}
+ // Transliterate once per pool: searching would otherwise convert thousands of words on every keystroke.
+ val romajiById=remember(pool) {pool.associate {it.id to Romaji.display(it)}}
+ val matches=remember(pool,romajiById,query) {pool.filter {w ->listOf(w.written,w.reading,w.meaning,romajiById[w.id] ?: "").any {it.contains(query.trim(),true)}}}
  val counts=remember(library) {library.groupingBy {it.level}.eachCount()}
  LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
   item {
@@ -55,7 +57,7 @@ fun WordLibrary(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: Modifi
    Text("Downloads need internet. Saved words work offline; screen-off updates never call the API. Public service availability and word accuracy can vary.",style=MaterialTheme.typography.bodySmall)
   }}}
   item {
-   OutlinedTextField(value=query,onValueChange={query=it.take(120)},singleLine=true,label={Text("Search Japanese, kana or meaning")},
+   OutlinedTextField(value=query,onValueChange={query=it.take(120)},singleLine=true,label={Text("Search Japanese, kana, romaji or meaning")},
     leadingIcon={Icon(AppIcons.Search,null)},modifier=Modifier.fillMaxWidth(),
     trailingIcon={if(query.isNotEmpty()) IconButton(onClick={query=""}) {Icon(AppIcons.Close,"Clear search")}})
    Spacer(Modifier.height(8.dp));Text("${matches.size} results · tap a word to preview",style=MaterialTheme.typography.bodySmall)
@@ -64,12 +66,14 @@ fun WordLibrary(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: Modifi
    Text(if(pool.isEmpty()) "No eligible words. Download selected levels, include the starter pack, or turn off Favorites only." else "No matches. Try a shorter search.",Modifier.padding(vertical=16.dp))
   }
   items(matches,key={it.id}) {w ->
+   val romaji=romajiById[w.id] ?: ""
    OutlinedCard(onClick={vm.selectWord(w.id);onSelected()},enabled=!busy,modifier=Modifier.fillMaxWidth()) {
     Row(Modifier.padding(16.dp),verticalAlignment=Alignment.CenterVertically) {
      Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
       Text(if(w.level==0) "Starter · ungraded" else "JLPT N${w.level}",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.primary)
       Text(w.written,style=MaterialTheme.typography.titleLarge)
       if(w.reading!=w.written) Text(w.reading,color=MaterialTheme.colorScheme.onSurfaceVariant)
+      if(romaji.isNotBlank()) Text(romaji,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
       Text(w.meaning,style=MaterialTheme.typography.bodyMedium)
      }
      Column(horizontalAlignment=Alignment.CenterHorizontally) {
@@ -83,6 +87,7 @@ fun WordLibrary(vm: WallViewModel,s: WallSettings,busy: Boolean,modifier: Modifi
    }
   }
   item {
+   Text("Romaji is written on your device from the kana reading. Starter words use curated spellings; downloaded words keep kana vowel pairs literal, so がっこう reads gakkou.",style=MaterialTheme.typography.bodySmall)
    Text("Source: JLPT Vocabulary API by wkei; underlying study lists from Jonathan Waller / Tanos. These are third-party study levels, not an official JLPT vocabulary syllabus.",style=MaterialTheme.typography.bodySmall)
    TextButton(onClick={uri.openUri(JlptClient.HOME)}) {Text("Vocabulary source & documentation")}
   }

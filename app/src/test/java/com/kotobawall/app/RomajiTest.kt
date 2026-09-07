@@ -28,7 +28,7 @@ class RomajiTest {
  }
  @Test fun unknownCharactersPassThrough() {
   assertEquals("Wi-Fi",Romaji.of("Wi-Fi"))
-  assertEquals("食べる",Romaji.of("食べる").let {"食beru"}.let {"食べる"})
+  assertEquals("食beru",Romaji.of("食べる"))
  }
  @Test fun blankStaysBlank() {assertEquals("",Romaji.of("   "))}
  @Test fun curatedRomajiWins() {
@@ -36,5 +36,8 @@ class RomajiTest {
  }
  @Test fun derivesWhenCuratedRomajiMissing() {
   assertEquals("neko",Romaji.display(Word("cat","猫","ねこ","Cat","Nature")))
+ }
+ @Test fun fallsBackToWrittenFormWhenKanaMissing() {
+  assertEquals("basu",Romaji.display(Word("bus","バス","","Bus","Katakana")))
  }
 }
