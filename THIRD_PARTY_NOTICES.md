@@ -16,6 +16,9 @@ Sources:
 - https://github.com/google/fonts/tree/5e35378e6bda803962ee6fd257e444a7d459660d/ofl/zenkakugothicnew
 - https://github.com/google/fonts/tree/5e35378e6bda803962ee6fd257e444a7d459660d/ofl/zenoldmincho
 
+## App icon outlines
+The kanji 雲 used by the launcher, adaptive, monochrome themed and notification icons was converted to vector path data from Noto Sans JP Bold, which is licensed under the SIL Open Font License 1.1: https://github.com/notofonts/noto-cjk . Only outline geometry is embedded in the vector drawables and brand SVGs; no font file is bundled for the icon and none is required at runtime. Interface glyphs in AppIcons.kt, including the appearance switcher icons, are original drawings.
+
 ## Optional vocabulary downloads
 Provider: https://jlpt-vocab-api.vercel.app/ by wkei. https://github.com/wkei/jlpt-vocab-api/blob/main/data-source/README.md identifies Jonathan Waller's Tanos JLPT resources: https://www.tanos.co.uk/jlpt/ . No provider dataset or source code is bundled. Explicitly requested responses are cached privately for offline study. Public API availability does not establish a blanket redistribution license; provider data is not MIT-licensed by this app. Verify upstream terms before redistributing downloaded dictionaries or publishing a store release. Levels are third-party study classifications, not official JLPT vocabulary specifications.
 

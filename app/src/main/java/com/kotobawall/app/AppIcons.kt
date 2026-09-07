@@ -37,4 +37,8 @@ object AppIcons {
  val CheckCircle: ImageVector by lazy {icon("CheckCircle","M12 3 A9 9 0 1 1 12 21 A9 9 0 1 1 12 3 M7 12 L10 15 L17 8")}
  val Star: ImageVector by lazy {icon("Star","M12 2.5 L15 8.5 L21.7 9.5 L16.85 14.2 L18 21 L12 17.8 L6 21 L7.15 14.2 L2.3 9.5 L9 8.5 Z",true)}
  val StarBorder: ImageVector by lazy {icon("StarBorder","M12 2.5 L15 8.5 L21.7 9.5 L16.85 14.2 L18 21 L12 17.8 L6 21 L7.15 14.2 L2.3 9.5 L9 8.5 Z")}
+ // Appearance switcher: sun for light, crescent for dark, split circle for following the system.
+ val LightMode: ImageVector by lazy {icon("LightMode","M12 8 A4 4 0 1 1 12 16 A4 4 0 1 1 12 8 M12 2 V4 M12 20 V22 M2 12 H4 M20 12 H22 M5.2 5.2 L6.6 6.6 M17.4 17.4 L18.8 18.8 M18.8 5.2 L17.4 6.6 M6.6 17.4 L5.2 18.8")}
+ val DarkMode: ImageVector by lazy {icon("DarkMode","M15.5 3.5 A9 9 0 1 0 15.5 20.5 A9.5 9.5 0 0 1 15.5 3.5 Z")}
+ val ThemeAuto: ImageVector by lazy {icon("ThemeAuto","M12 3 A9 9 0 1 1 12 21 A9 9 0 1 1 12 3 M12 3 V21")}
 }

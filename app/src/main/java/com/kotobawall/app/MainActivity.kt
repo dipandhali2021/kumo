@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -33,11 +34,22 @@ import java.util.Date
 import kotlinx.coroutines.flow.collect
 
 class MainActivity: ComponentActivity() {
- override fun onCreate(savedInstanceState: Bundle?) {super.onCreate(savedInstanceState);enableEdgeToEdge();setContent {KotobaTheme {KotobaApp()}}}
+ override fun onCreate(savedInstanceState: Bundle?) {
+  super.onCreate(savedInstanceState)
+  enableEdgeToEdge()
+  val bars=WindowCompat.getInsetsController(window,window.decorView)
+  setContent {
+   val theme=rememberThemeController()
+   val dark=theme.isDark()
+   // Status and navigation icons follow the chosen appearance, not only the Android setting.
+   SideEffect {bars.isAppearanceLightStatusBars=!dark;bars.isAppearanceLightNavigationBars=!dark}
+   KotobaTheme(dark) {KotobaApp(theme)}
+  }
+ }
 }
 @Composable
-fun KotobaTheme(content: @Composable ()->Unit) {
- val context=LocalContext.current;val dark=isSystemInDarkTheme()
+fun KotobaTheme(dark: Boolean=isSystemInDarkTheme(),content: @Composable ()->Unit) {
+ val context=LocalContext.current
  val scheme=when {
   Build.VERSION.SDK_INT>=31 -> if(dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
   dark -> darkColorScheme(primary=Color(0xFFA9C7FF),secondary=Color(0xFFB9C7DF))
@@ -47,7 +59,7 @@ fun KotobaTheme(content: @Composable ()->Unit) {
 }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun KotobaApp(vm: WallViewModel=viewModel()) {
+fun KotobaApp(theme: ThemeController,vm: WallViewModel=viewModel()) {
  val s by vm.settings.collectAsStateWithLifecycle()
  val preview by vm.preview.collectAsStateWithLifecycle()
  val previewError by vm.previewError.collectAsStateWithLifecycle()
@@ -69,7 +81,13 @@ fun KotobaApp(vm: WallViewModel=viewModel()) {
   topBar={TopAppBar(title={Column {
    Text("Kumo",fontWeight=FontWeight.SemiBold)
    Text("A little Japanese, every day",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
-  }},actions={IconButton(onClick={showAbout=true}) {Icon(AppIcons.Info,"About this app")}})},
+  }},actions={
+   // Appearance switcher sits just before the info button and cycles system, light, dark.
+   IconButton(onClick={vm.messages.tryEmit(theme.advance().label)}) {
+    Icon(when(theme.mode) {ThemeMode.System -> AppIcons.ThemeAuto;ThemeMode.Light -> AppIcons.LightMode;ThemeMode.Dark -> AppIcons.DarkMode},theme.mode.label+", tap to change")
+   }
+   IconButton(onClick={showAbout=true}) {Icon(AppIcons.Info,"About this app")}
+  })},
   snackbarHost={SnackbarHost(snackbar)},
   bottomBar={NavigationBar {
    listOf("Studio" to AppIcons.Wallpaper,"Words" to AppIcons.MenuBook,"Wallpapers" to AppIcons.PhotoLibrary,"Schedule" to AppIcons.Schedule).forEachIndexed {index,item ->
@@ -133,11 +151,11 @@ fun KotobaApp(vm: WallViewModel=viewModel()) {
   val licenses by produceState("") {value=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
    listOf("gothic_OFL.txt","mincho_OFL.txt").joinToString("\n\n") {name ->context.assets.open("fonts/$name").bufferedReader().use {it.readText()}}
   }}
-  AlertDialog(onDismissRequest={showAbout=false},title={Text("Kumo 1.8 \u00b7 \u96f2")},text={Column(Modifier.heightIn(max=380.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+  AlertDialog(onDismissRequest={showAbout=false},title={Text("Kumo 1.9 \u00b7 \u96f2")},text={Column(Modifier.heightIn(max=380.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
    Text("50 offline starter entries, plus optional JLPT N5\u2013N1 downloads. No account or analytics. Your photos and settings are not uploaded. The vocabulary provider receives your IP address and requested level when you download.")
    Text("Romaji: taken from the vocabulary service when it supplies one, and otherwise written on your device from the kana reading using modified Hepburn, with macrons for long vowels.")
    Text("Vocabulary: wkei / JLPT Vocabulary API, based on Jonathan Waller\u2019s Tanos study lists. Levels are estimates, not an official JLPT syllabus. Readings and meanings may contain errors.")
-   Text("Japanese fonts: Zen Kaku Gothic New and Zen Old Mincho, bundled under SIL Open Font License 1.1. Interface icons: original compact Kumo vector set.")
+   Text("Japanese fonts: Zen Kaku Gothic New and Zen Old Mincho, bundled under SIL Open Font License 1.1. The \u96f2 app icon is drawn from Noto Sans JP Bold outlines, also SIL Open Font License 1.1. Interface icons: original compact Kumo vector set.")
    Text("Online photos: Unsplash via Lorem Picsum by default, with Pexels as an optional source. Pexels receives your search terms and API key. Browsing and saving contact the provider and CDN. Keys are entered on-device and encrypted with Android Keystore, not bundled in the APK. Saved backgrounds and Last used stay in private app storage. Coil image loader: Apache 2.0.")
    Text(licenses,style=MaterialTheme.typography.bodySmall)
   }},confirmButton={TextButton(onClick={showAbout=false}) {Text("Close")}})

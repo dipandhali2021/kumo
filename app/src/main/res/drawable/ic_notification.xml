@@ -1,1 +1,11 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="108" android:viewportHeight="108"><group android:translateX="-31.5" android:translateY="-25.5" android:scaleX="1.58" android:scaleY="1.58"><path android:fillColor="#FFFFFF" android:pathData="M39,71 C31.82,71 26,65.18 26,58 C26,51.47 30.81,46.07 37.08,45.14 C39.23,37.57 46.2,32 54.5,32 C64.11,32 72.02,39.51 72.46,49.01 C77.85,49.49 82,54.02 82,59.5 C82,65.85 76.85,71 70.5,71 Z" /></group></vector>
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Notification silhouette: the kanji 雲 as a single white shape, tinted by the system. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+ android:width="24dp"
+ android:height="24dp"
+ android:viewportWidth="24"
+ android:viewportHeight="24">
+ <path
+  android:fillColor="#FFFFFF"
+  android:pathData="M4.59 12.75V14.66H19.47V12.75ZM5.49 7.71V9.36H9.85V7.71ZM5.05 10.18V11.82H9.82V10.18ZM14.02 10.18V11.82H18.92V10.18ZM14.02 7.71V9.36H18.42V7.71ZM3.32 19.21 3.52 21.45C7.16 21.36 12.55 21.21 17.69 20.99C18.07 21.36 18.4 21.69 18.64 21.98L21.14 20.84C20.24 19.87 18.62 18.57 17.16 17.56H22V15.56H2V17.56H6.95C6.66 18.11 6.31 18.66 5.98 19.16ZM14 18.02C14.44 18.31 14.9 18.64 15.34 18.99L8.88 19.12C9.3 18.64 9.71 18.11 10.13 17.56H15.03ZM2.31 4.95V9.91H4.66V6.88H10.64V12.18H13.21V6.88H19.27V9.91H21.71V4.95H13.21V4H20.13V2.02H3.8V4H10.64V4.95Z" />
+</vector>

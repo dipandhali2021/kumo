@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="108" height="108" viewBox="0 0 108 108" role="img" aria-labelledby="kumo-kanji-title kumo-kanji-desc">
+ <title id="kumo-kanji-title">Kumo mark</title>
+ <desc id="kumo-kanji-desc">The kanji 雲 (kumo, cloud) in white on a transparent canvas, matching the Android adaptive foreground.</desc>
+ <path fill="#FFFFFF" d="M35.48 55.87V60.65H72.68V55.87ZM37.74 43.29V47.41H48.62V43.29ZM36.64 49.44V53.56H48.56V49.44ZM59.05 49.44V53.56H71.31V49.44ZM59.05 43.29V47.41H70.04V43.29ZM32.3 72.02 32.79 77.63C41.91 77.41 55.37 77.02 68.23 76.47C69.16 77.41 69.99 78.23 70.59 78.95L76.86 76.09C74.6 73.67 70.54 70.43 66.91 67.9H79V62.9H29V67.9H41.36C40.65 69.27 39.77 70.65 38.95 71.91ZM59 69.05C60.1 69.77 61.25 70.59 62.35 71.47L46.2 71.8C47.24 70.59 48.29 69.27 49.33 67.9H61.58ZM29.77 36.36V48.78H35.65V41.2H50.59V54.44H57.02V41.2H72.19V48.78H78.29V36.36H57.02V34H74.33V29.05H33.51V34H50.59V36.36Z"/>
+</svg>

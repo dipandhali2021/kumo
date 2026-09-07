@@ -1,4 +1,14 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
- <path android:fillColor="#235BB5" android:pathData="M24,0 H84 C97.25,0 108,10.75 108,24 V84 C108,97.25 97.25,108 84,108 H24 C10.75,108 0,97.25 0,84 V24 C0,10.75 10.75,0 24,0 Z" />
- <path android:fillColor="#FFFFFF" android:pathData="M39,71 C31.82,71 26,65.18 26,58 C26,51.47 30.81,46.07 37.08,45.14 C39.23,37.57 46.2,32 54.5,32 C64.11,32 72.02,39.51 72.46,49.01 C77.85,49.49 82,54.02 82,59.5 C82,65.85 76.85,71 70.5,71 Z" />
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Legacy launcher icon for API 24-25: the kanji 雲 in white on Kumo blue. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+ android:width="108dp"
+ android:height="108dp"
+ android:viewportWidth="108"
+ android:viewportHeight="108">
+ <path
+  android:fillColor="#235BB5"
+  android:pathData="M24,0 H84 C97.25,0 108,10.75 108,24 V84 C108,97.25 97.25,108 84,108 H24 C10.75,108 0,97.25 0,84 V24 C0,10.75 10.75,0 24,0 Z" />
+ <path
+  android:fillColor="#FFFFFF"
+  android:pathData="M31.04 56.32V62.24H77.16V56.32ZM33.83 40.71V45.82H47.32V40.71ZM32.47 48.35V53.45H47.25V48.35ZM60.27 48.35V53.45H75.46V48.35ZM60.27 40.71V45.82H73.89V40.71ZM27.09 76.35 27.7 83.3C39.01 83.02 55.7 82.55 71.65 81.87C72.8 83.02 73.83 84.05 74.58 84.93L82.34 81.39C79.55 78.39 74.51 74.37 70.01 71.24H85V65.04H23V71.24H38.33C37.44 72.94 36.35 74.64 35.33 76.21ZM60.2 72.67C61.56 73.55 62.99 74.58 64.36 75.67L44.33 76.07C45.62 74.58 46.91 72.94 48.21 71.24H63.4ZM23.95 32.13V47.53H31.24V38.13H49.78V54.55H57.75V38.13H76.55V47.53H84.11V32.13H57.75V29.2H79.21V23.07H28.59V29.2H49.78V32.13Z" />
 </vector>
