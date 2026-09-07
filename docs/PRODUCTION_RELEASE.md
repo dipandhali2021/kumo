@@ -4,7 +4,9 @@
 
 The connected GitHub integration previously denied writes under `.github/workflows`. The prepared workflow is stored as documentation at `docs/workflows/kumo-release.yml`; this file does not run there.
 
-In GitHub, create `.github/workflows/kumo-release.yml` on `main`, copy in the complete contents of `docs/workflows/kumo-release.yml`, and commit. Alternatively add the downloaded workflow file with that exact path using your own Git checkout. Do not replace the existing debug workflow. The production workflow has only `workflow_dispatch`: no automatic production build on push and no automatic publication to GitHub Releases or Google Play.
+In GitHub, create `.github/workflows/kumo-release.yml` on `main`, copy in the complete contents of `docs/workflows/kumo-release.yml`, and commit. Alternatively add the downloaded workflow file with that exact path using your own Git checkout. Do not replace the existing debug workflow. The production workflow has only `workflow_dispatch`: no automatic production build on push and no automatic publication to Google Play.
+
+Publishing releases is a separate, already installed workflow: `.github/workflows/kumo-version-release.yml` creates the `v<versionName>` tag and GitHub release whenever `app/build.gradle.kts` changes the version on `main`. It never overwrites an existing tag or release, and it attaches no binaries. Upload the signed artifacts produced below to that release when you want them distributed.
 
 ## Create or reuse a stable private signing key
 
@@ -43,7 +45,7 @@ Never commit these values or the keystore. The workflow decodes the key to a tem
 2. Select the trusted `main` branch and run it.
 3. After all steps succeed, download **Kumo-production-RUN_NUMBER** from that run's Artifacts section.
 
-The ZIP contains a signed `Kumo-release.apk`, signed `Kumo-release.aab`, R8 `mapping.txt`, SHA-256 checksums, and an actual APK size report. APK is for installation; AAB is for store upload, not direct installation. Artifacts are retained for 14 days. Save the signing key and mapping file for every distributed version. Increment versionCode before distributing an update; the current version is 1.6.0 / code 7.
+The ZIP contains a signed `Kumo-release.apk`, signed `Kumo-release.aab`, R8 `mapping.txt`, SHA-256 checksums, and an actual APK size report. APK is for installation; AAB is for store upload, not direct installation. Artifacts are retained for 14 days. Save the signing key and mapping file for every distributed version. Increment versionCode before distributing an update; the current version is 1.9.0 / code 10.
 
 The workflow runs release JVM tests and release lint, builds release APK/AAB plus a debug APK for size comparison, and verifies the APK signature. It does not run an emulator, device tests, or a Play policy review. Do not equate a green workflow with device QA or store approval.
 
@@ -59,10 +61,10 @@ Release packaging fails if signing configuration is missing; there is no fallbac
 
 ## APK size changes
 
-- Removed `material-icons-extended`. The UI uses 19 small original vector glyphs; Material 3 components are retained. This targets debug APK overhead as well as keeping release lean.
+- Removed `material-icons-extended`. The UI uses a compact set of small original vector glyphs, including the appearance switcher icons; Material 3 components are retained. This targets debug APK overhead as well as keeping release lean.
 - Production uses the existing R8 code optimization/obfuscation and resource shrinking, with debug tooling excluded. Added narrow keep rules for the ViewModel constructors used reflectively.
 - All four real Japanese regular/bold font files remain intact. No kana, kanji, user text, JLPT levels or font choices were removed to reach an arbitrary size target.
-- Launcher and notification icons are vectors, not multiple large raster images.
+- Launcher and notification icons are vectors, not multiple large raster images. The kanji 雲 mark is path data, so no font is loaded to draw the icon.
 - AAB output enables device-specific store delivery; its file size is not the installed APK size.
 
 The earlier 27 MB debug APK was not provided for analysis. No final size or percentage reduction has been measured here. The workflow publishes a measured same-commit debug/release breakdown, including compressed fonts and DEX.
