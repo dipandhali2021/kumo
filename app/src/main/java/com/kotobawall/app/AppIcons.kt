@@ -26,6 +26,7 @@ object AppIcons {
  val Download: ImageVector by lazy {icon("Download","M12 3 V16 M7 11 L12 16 L17 11 M4 17 V21 H20 V17")}
  val Lock: ImageVector by lazy {icon("Lock","M5 10 H19 V21 H5 Z M8 10 V7 A4 4 0 0 1 16 7 V10 M12 14 V17")}
  val NavigateNext: ImageVector by lazy {icon("NavigateNext","M9 5 L16 12 L9 19")}
+ val NavigateBefore: ImageVector by lazy {icon("NavigateBefore","M15 5 L8 12 L15 19")}
  val OpenInFull: ImageVector by lazy {icon("OpenInFull","M4 10 V4 H10 M4 4 L10 10 M20 14 V20 H14 M20 20 L14 14")}
  val ArrowDropDown: ImageVector by lazy {icon("ArrowDropDown","M6 9 L12 15 L18 9")}
  val Search: ImageVector by lazy {icon("Search","M10.5 3 A7.5 7.5 0 1 1 10.5 18 A7.5 7.5 0 1 1 10.5 3 M16 16 L21 21")}

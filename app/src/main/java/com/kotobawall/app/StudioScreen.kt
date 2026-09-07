@@ -6,29 +6,44 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlin.math.roundToInt
+
+private const val TAB_POSITION=0
+private const val TAB_LINES=1
+private const val TAB_EXPORT=2
 
 @Composable
 fun StudioScreen(vm: WallViewModel,s: WallSettings,bitmap: Bitmap?,error: String,busy: Boolean,
@@ -43,58 +58,85 @@ fun StudioScreen(vm: WallViewModel,s: WallSettings,bitmap: Bitmap?,error: String
  var panel by remember(s.panel) {mutableFloatStateOf(s.panel)}
  var expanded by rememberSaveable {mutableStateOf(false)}
  var clockGuide by rememberSaveable {mutableStateOf(true)}
+ var tab by rememberSaveable {mutableIntStateOf(TAB_POSITION)}
  val live=s.copy(position=position,scale=scale,panel=panel,typography=typography)
  val library by vm.words.collectAsStateWithLifecycle()
  val word=library.getOrElse(s.wordIndex) {library.first()}
- val hasWords=library.any {WordPolicy.eligible(it,s)}
- // The preview sits straight on the background: no card, no border.
- val previewPane: @Composable (Modifier)->Unit={paneModifier ->
-  Column(paneModifier.padding(start=20.dp,end=12.dp,top=4.dp,bottom=12.dp)) {
-   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-    Text("Live preview",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f))
-    IconButton(onClick={expanded=true}) {Icon(AppIcons.OpenInFull,"Expand wallpaper preview")}
-    IconButton(onClick={vm.next()},enabled=!busy) {Icon(AppIcons.NavigateNext,"Preview next word")}
-   }
-   Spacer(Modifier.height(4.dp))
-   WallpaperPreview(bitmap,live,word,error,clockGuide,Modifier.fillMaxWidth().weight(1f).padding(end=8.dp))
+ val eligible=library.filter {WordPolicy.eligible(it,s)}
+ val hasWords=eligible.isNotEmpty()
+ // Arrows walk the eligible list in both directions, so the preview can be checked word by word.
+ val step: (Int)->Unit={delta ->
+  if(eligible.isNotEmpty()) {
+   val at=eligible.indexOfFirst {it.id==word.id}.coerceAtLeast(0)
+   vm.selectWord(eligible[((at+delta)%eligible.size+eligible.size)%eligible.size].id)
   }
  }
- // Controls live in a sheet whose rounded top edge stays put while the list scrolls under it.
+ // Each tab needs a different amount of preview: Position keeps its controls unscrolled,
+ // Export shows the wallpaper large, and Line designer only needs the zoomed text band.
+ val previewShare=when(tab) {TAB_LINES->0.30f;TAB_EXPORT->0.56f;else->0.40f}
+ val previewPane: @Composable (Modifier)->Unit={paneModifier ->
+  Column(paneModifier.padding(start=20.dp,end=20.dp,top=4.dp,bottom=12.dp)) {
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+    Text(if(tab==TAB_LINES) "Text preview" else "Live preview",style=MaterialTheme.typography.titleMedium,
+     fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f))
+    if(tab!=TAB_LINES) {
+     IconButton(onClick={step(-1)},enabled=!busy) {Icon(AppIcons.NavigateBefore,"Preview previous word")}
+     IconButton(onClick={step(1)},enabled=!busy) {Icon(AppIcons.NavigateNext,"Preview next word")}
+    }
+    IconButton(onClick={expanded=true}) {Icon(AppIcons.OpenInFull,"Expand wallpaper preview")}
+   }
+   Spacer(Modifier.height(4.dp))
+   if(tab==TAB_LINES) ZoomedPreview(bitmap,live,word,error,!busy,Modifier.fillMaxWidth().weight(1f),{step(-1)},{step(1)})
+   else WallpaperPreview(bitmap,live,word,error,clockGuide,Modifier.fillMaxWidth().weight(1f))
+  }
+ }
+ // The sheet keeps its rounded top and hairline fixed while only the tab content scrolls.
  val controls: @Composable (Modifier,Boolean)->Unit={sheetModifier,wide ->
-  Surface(modifier=sheetModifier,tonalElevation=3.dp,
+  Surface(modifier=if(wide) sheetModifier else sheetModifier.sheetTopEdge(28.dp,Color.White.copy(alpha=0.32f)),
+   tonalElevation=3.dp,
    shape=if(wide) RoundedCornerShape(topStart=28.dp,bottomStart=28.dp) else RoundedCornerShape(topStart=28.dp,topEnd=28.dp)) {
    Column(Modifier.fillMaxSize()) {
-    LazyColumn(Modifier.weight(1f),contentPadding=PaddingValues(start=20.dp,end=20.dp,top=20.dp,bottom=8.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
-     if(!hasWords) item {
-      Text("No eligible words. Download a selected JLPT level or adjust filters in Words.",color=MaterialTheme.colorScheme.error)
-     }
-     item {
-      Text("Position & style",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.SemiBold)
-      Spacer(Modifier.height(14.dp))
-      Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-       linkedMapOf("Top" to 0f,"Middle" to 0.5f,"Bottom" to 1f).forEach {(name,target) ->
-        PositionChoice(name,kotlin.math.abs(position-target)<0.01f,!busy,Modifier.weight(1f)) {
-         position=target;vm.edit {it.copy(position=target)}
+    StudioTabs(tab,!busy) {tab=it}
+    Box(Modifier.weight(1f)) {
+     key(tab) {
+      val scroll=rememberScrollState()
+      val fade=(scroll.value/70f).coerceIn(0f,1f)
+      Column(Modifier.fillMaxSize().topFade(fade,28.dp).verticalScroll(scroll)
+       .padding(start=20.dp,end=20.dp,top=8.dp,bottom=10.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
+       if(!hasWords) Text("No eligible words. Download a selected JLPT level or adjust filters in Words.",color=MaterialTheme.colorScheme.error)
+       when(tab) {
+        TAB_POSITION -> {
+         Text("Position",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.SemiBold)
+         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+          linkedMapOf("Top" to 0f,"Middle" to 0.5f,"Bottom" to 1f).forEach {(name,target) ->
+           PositionChoice(name,kotlin.math.abs(position-target)<0.01f,!busy,Modifier.weight(1f)) {
+            position=target;vm.edit {it.copy(position=target)}
+           }
+          }
+         }
+         LiveSlider("Text position",position,0f..1f,!busy,{position=it}) {vm.edit {it.copy(position=position)}}
+         LiveSlider("Text size",scale,0.75f..1.4f,!busy,{scale=it}) {vm.edit {it.copy(scale=scale)}}
+         LiveSlider("Dark panel",panel,0f..0.8f,!busy,{panel=it}) {vm.edit {it.copy(panel=panel)}}
+        }
+        TAB_LINES -> {
+         TypographyEditor(typography,!busy,dirty,onChange={vm.editTypography(it)},onSave={vm.saveTypography(typography)})
+         Text("The arrows on the preview step through your words, so you can check how each line looks before applying.",
+          style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        else -> {
+         Text("Export",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.SemiBold)
+         StudioSwitch("Show clock guide",clockGuide,true) {clockGuide=it}
+         Text("The clock guide is a preview aid only and is never drawn into the wallpaper. Leave room for your phone\u2019s notifications and fingerprint sensor.",
+          style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+         OutlinedButton(onClick=export,enabled=!busy && bitmap!=null && hasWords && !dirty,shape=RoundedCornerShape(20.dp),
+          modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
+          Icon(AppIcons.Download,null);Spacer(Modifier.width(8.dp));Text(if(dirty) "Save line layout before export" else "Export wallpaper PNG")
+         }
+         Text("Position, text size and panel save when you release a slider. Save the line layout separately so automatic updates use it too.",
+          style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
        }
       }
-      LiveSlider("Text position",position,0f..1f,!busy,{position=it}) {vm.edit {it.copy(position=position)}}
-      LiveSlider("Text size",scale,0.75f..1.4f,!busy,{scale=it}) {vm.edit {it.copy(scale=scale)}}
-      LiveSlider("Dark panel",panel,0f..0.8f,!busy,{panel=it}) {vm.edit {it.copy(panel=panel)}}
-     }
-     item {HorizontalDivider()}
-     item {TypographyEditor(typography,!busy,dirty,onChange={vm.editTypography(it)},onSave={vm.saveTypography(typography)})}
-     item {HorizontalDivider()}
-     item {
-      StudioSwitch("Show clock guide",clockGuide,true) {clockGuide=it}
-      Text("The clock guide is a preview aid only and is never drawn into the wallpaper. Leave room for your phone\u2019s notifications and fingerprint sensor.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-      Spacer(Modifier.height(14.dp))
-      OutlinedButton(onClick=export,enabled=!busy && bitmap!=null && hasWords && !dirty,shape=RoundedCornerShape(20.dp),
-       modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
-       Icon(AppIcons.Download,null);Spacer(Modifier.width(8.dp));Text(if(dirty) "Save line layout before export" else "Export wallpaper PNG")
-      }
-      Spacer(Modifier.height(10.dp))
-      Text("Position, text size and panel save when you release a slider. Save the line layout separately so automatic updates use it too.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
      }
     }
     Button(onClick={vm.apply(typography)},enabled=!busy && bitmap!=null && hasWords,shape=RoundedCornerShape(28.dp),
@@ -109,18 +151,55 @@ fun StudioScreen(vm: WallViewModel,s: WallSettings,bitmap: Bitmap?,error: String
   if(maxWidth>maxHeight) Row(Modifier.fillMaxSize()) {
    previewPane(Modifier.weight(0.44f).fillMaxHeight());controls(Modifier.weight(0.56f).fillMaxHeight(),true)
   } else Column(Modifier.fillMaxSize()) {
-   previewPane(Modifier.weight(0.48f).fillMaxWidth());controls(Modifier.weight(0.52f).fillMaxWidth(),false)
+   previewPane(Modifier.weight(previewShare).fillMaxWidth());controls(Modifier.weight(1f-previewShare).fillMaxWidth(),false)
   }
  }
  if(expanded) Dialog(onDismissRequest={expanded=false},properties=DialogProperties(usePlatformDefaultWidth=false)) {
   Surface(Modifier.fillMaxSize()) {Column(Modifier.safeDrawingPadding().padding(16.dp)) {
    Row(verticalAlignment=Alignment.CenterVertically) {
     Text("Wallpaper preview",style=MaterialTheme.typography.titleLarge,modifier=Modifier.weight(1f))
+    IconButton(onClick={step(-1)},enabled=!busy) {Icon(AppIcons.NavigateBefore,"Preview previous word")}
+    IconButton(onClick={step(1)},enabled=!busy) {Icon(AppIcons.NavigateNext,"Preview next word")}
     IconButton(onClick={expanded=false}) {Icon(AppIcons.Close,"Close expanded preview")}
    }
    WallpaperPreview(bitmap,live,word,error,clockGuide,Modifier.weight(1f).fillMaxWidth())
    LiveSlider("Text position",position,0f..1f,!busy,{position=it}) {vm.edit {it.copy(position=position)}}
   }}
+ }
+}
+/** Traces a hairline along the two rounded top corners only, so the sheet has no side edges. */
+private fun Modifier.sheetTopEdge(radius: Dp,color: Color)=drawWithContent {
+ drawContent()
+ val r=radius.toPx();val line=1.5.dp.toPx();val inset=line/2
+ val path=Path().apply {
+  moveTo(inset,r+inset)
+  arcTo(Rect(inset,inset,inset+2*r,inset+2*r),180f,90f,false)
+  lineTo(size.width-inset-r,inset)
+  arcTo(Rect(size.width-inset-2*r,inset,size.width-inset,inset+2*r),270f,90f,false)
+ }
+ drawPath(path,color,style=Stroke(width=line))
+}
+/** Fades scrolled content out under the sheet edge; the strip grows as scrolling starts. */
+private fun Modifier.topFade(amount: Float,height: Dp)=
+ graphicsLayer {compositingStrategy=CompositingStrategy.Offscreen}.drawWithContent {
+  drawContent()
+  if(amount>0.01f) {
+   val end=height.toPx()*amount
+   drawRect(brush=Brush.verticalGradient(listOf(Color.Transparent,Color.Black),startY=0f,endY=end),
+    size=Size(size.width,end),blendMode=BlendMode.DstIn)
+  }
+ }
+@Composable
+private fun StudioTabs(selected: Int,enabled: Boolean,onSelect: (Int)->Unit) {
+ Row(Modifier.fillMaxWidth().padding(start=16.dp,end=16.dp,top=16.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+  listOf("Position","Line designer","Export").forEachIndexed {index,label ->
+   val shape=RoundedCornerShape(18.dp);val height=Modifier.heightIn(min=44.dp);val padding=PaddingValues(horizontal=4.dp)
+   if(index==selected) Button(onClick={onSelect(index)},enabled=enabled,shape=shape,contentPadding=padding,modifier=Modifier.weight(1f).then(height)) {
+    Text(label,maxLines=1,style=MaterialTheme.typography.labelLarge)
+   } else OutlinedButton(onClick={onSelect(index)},enabled=enabled,shape=shape,contentPadding=padding,modifier=Modifier.weight(1f).then(height)) {
+    Text(label,maxLines=1,style=MaterialTheme.typography.labelLarge)
+   }
+  }
  }
 }
 @Composable
@@ -150,9 +229,42 @@ private fun WallpaperPreview(bitmap: Bitmap?,s: WallSettings,word: Word,error: S
   }
  }
 }
+/**
+ * Zooms into the text band of the wallpaper for the line designer: the wallpaper is laid out
+ * larger than the viewport and shifted so the text block stays centred, and the zoom eases off
+ * as lines are added so a four-line layout still fits.
+ */
+@Composable
+private fun ZoomedPreview(bitmap: Bitmap?,s: WallSettings,word: Word,error: String,enabled: Boolean,
+ modifier: Modifier,onPrevious: ()->Unit,onNext: ()->Unit) {
+ val context=LocalContext.current;val renderer=remember(context) {WallpaperRenderer(context)}
+ Box(modifier.clip(RoundedCornerShape(22.dp)).background(Color.Black),contentAlignment=Alignment.Center) {
+  if(error.isNotEmpty()) Text(error,Modifier.padding(16.dp),color=MaterialTheme.colorScheme.error)
+  else if(bitmap==null) CircularProgressIndicator()
+  else BoxWithConstraints(Modifier.fillMaxSize()) {
+   val zoom=when(s.typography.lineCount) {2->2.1f;3->1.9f;else->1.7f}
+   val width=maxWidth*zoom
+   val height=width*bitmap.height/bitmap.width
+   val slack=(height-maxHeight).coerceAtLeast(0.dp)
+   val offset=(height*s.position.coerceIn(0f,1f)-maxHeight/2).coerceIn(0.dp,slack)
+   Box(Modifier.size(width,height).offset(x=(maxWidth-width)/2,y=-offset)) {
+    Image(bitmap.asImageBitmap(),null,Modifier.fillMaxSize(),contentScale=ContentScale.FillBounds)
+    Canvas(Modifier.fillMaxSize().semantics {contentDescription="Text preview: ${word.written}, ${word.reading}, ${Romaji.display(word)}, ${word.meaning}"}) {
+     drawIntoCanvas {renderer.drawText(it.nativeCanvas,s,word,size.width.toInt().coerceAtLeast(1),size.height.toInt().coerceAtLeast(1))}
+    }
+   }
+   IconButton(onClick=onPrevious,enabled=enabled,modifier=Modifier.align(Alignment.CenterStart).padding(start=2.dp)) {
+    Icon(AppIcons.NavigateBefore,"Preview previous word",tint=Color.White)
+   }
+   IconButton(onClick=onNext,enabled=enabled,modifier=Modifier.align(Alignment.CenterEnd).padding(end=2.dp)) {
+    Icon(AppIcons.NavigateNext,"Preview next word",tint=Color.White)
+   }
+  }
+ }
+}
 @Composable
 private fun LiveSlider(label: String,value: Float,range: ClosedFloatingPointRange<Float>,enabled: Boolean,onChange: (Float)->Unit,onFinish: ()->Unit) {
- Column(Modifier.padding(top=10.dp)) {
+ Column {
   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
    Text(label,Modifier.weight(1f),style=MaterialTheme.typography.titleSmall,fontWeight=FontWeight.SemiBold)
    Text("${(value*100).roundToInt()}%",style=MaterialTheme.typography.titleSmall,fontWeight=FontWeight.SemiBold,color=MaterialTheme.colorScheme.onSurfaceVariant)
