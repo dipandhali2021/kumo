@@ -23,7 +23,7 @@ fun TypographyEditor(value: Typography,enabled: Boolean,dirty: Boolean,onChange:
   Text("Line designer",style=MaterialTheme.typography.titleMedium)
   Text("Choose what each line says and how it looks. Save the layout to use it for automatic updates.",style=MaterialTheme.typography.bodyMedium)
   Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-   listOf(2,3).forEach {count -> FilterChip(selected=value.lineCount==count,onClick={onChange(value.copy(lineCount=count))},enabled=enabled,label={Text("$count lines")})}
+   listOf(2,3,4).forEach {count -> FilterChip(selected=value.lineCount==count,onClick={onChange(value.copy(lineCount=count))},enabled=enabled,label={Text("$count lines")})}
   }
   ChoiceMenu("Block alignment",value.alignment,Typography.alignments,enabled) {onChange(value.copy(alignment=it))}
   ChoiceMenu("Font for all lines",value.rows.map {it.font}.distinct().singleOrNull() ?: "Mixed",Typography.fonts,enabled) {font -> onChange(value.copy(rows=value.rows.map {it.copy(font=font)}))}
@@ -43,7 +43,7 @@ fun TypographyEditor(value: Typography,enabled: Boolean,dirty: Boolean,onChange:
     }
     OutlinedTextField(value=row.template,onValueChange={update(row.copy(template=it.take(160)))},enabled=enabled,
      modifier=Modifier.fillMaxWidth(),singleLine=true,label={Text("Line content / custom text")},
-     supportingText={Text("Use {word}, {reading}, {meaning}, or your own text. Tokens change with each vocabulary word.")})
+     supportingText={Text("Use {word}, {reading}, {romaji}, {meaning}, or your own text. Tokens change with each vocabulary word.")})
     ChoiceMenu("Font",row.font,Typography.fonts,enabled) {update(row.copy(font=it))}
     ChoiceMenu("Line alignment",row.alignment,listOf("Default")+Typography.alignments,enabled) {update(row.copy(alignment=it))}
     EditorSlider("Line font size",row.size,12f..60f,enabled) {update(row.copy(size=it))}
@@ -63,6 +63,7 @@ fun TypographyEditor(value: Typography,enabled: Boolean,dirty: Boolean,onChange:
    }
   }
   Text("Each slot is one visual line. Long content shrinks to fit; very long text is shortened with an ellipsis. Empty slots are hidden. Gothic JP and Mincho JP are bundled Japanese fonts, with separate regular and bold files.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+  Text("Romaji comes from the kana reading and is written on your device. Starter words use curated spellings such as konnichiwa; downloaded JLPT words keep kana vowel pairs literal, so がっこう reads gakkou.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
   Button(onClick=onSave,enabled=enabled && dirty,modifier=Modifier.fillMaxWidth()) {Text(if(dirty) "Save line layout" else "Line layout saved")}
   TextButton(onClick={onChange(Typography())},enabled=enabled) {Text("Reset line layout")}
  }

@@ -1,7 +1,8 @@
 package com.kotobawall.app
 import kotlin.math.max
 
-data class Word(val id: String,val written: String,val reading: String,val meaning: String,val category: String,val level: Int=0)
+// romaji is optional and curated; when blank it is transliterated from reading by Romaji.
+data class Word(val id: String,val written: String,val reading: String,val meaning: String,val category: String,val level: Int=0,val romaji: String="")
 data class WallSettings(
  val wordIndex: Int=0,val background: String="Ocean",val photo: String="",
  val showReading: Boolean=true,val showMeaning: Boolean=true,
