@@ -22,6 +22,9 @@ data class OnlineWallpaper(val id: String,val author: String,val width: Int,val 
  }
 }
 object WallpaperCatalog {
+ // Green grassfield by Paul Jarvis: unsplash.com/photos/Cm7oKel-X2Q. Picsum republishes it as id 11,
+ // so the app can fetch it over the existing no-key path instead of shipping a photo inside the APK.
+ val DEFAULT=OnlineWallpaper("11","Paul Jarvis",2500,1667,"https://unsplash.com/photos/Cm7oKel-X2Q")
  fun parse(json: String): List<OnlineWallpaper> {
   val data=JSONArray(json);check(data.length()<=100) {"Unexpected gallery response."}
   return List(data.length()) {i ->

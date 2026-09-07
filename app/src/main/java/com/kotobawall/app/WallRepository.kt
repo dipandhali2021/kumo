@@ -88,10 +88,23 @@ class WallRepository(private val context: Context) {
  private fun deleteOldPhoto(path: String) {
   if(path.isNotEmpty() && !wallpapers.owns(path)) File(context.filesDir,path).delete()
  }
+ // Set once the starting background is settled, so the default photo never overrides a later choice.
+ private fun markDefaultHandled() {prefs.edit().putBoolean("defaultPhotoV17",true).apply()}
+ /**
+  * Fetches the default Studio background on first launch instead of bundling a photo in the APK.
+  * Offline launches keep the gradient and retry next start; failures are not fatal.
+  */
+ suspend fun ensureDefaultWallpaper() {
+  if(prefs.getBoolean("defaultPhotoV17",false)) return
+  if(mutable.value.photo.isNotEmpty()) {markDefaultHandled();return}
+  val path=saveOnlineWallpaper(WallpaperCatalog.DEFAULT)
+  if(mutable.value.photo.isEmpty()) chooseWallpaper(path)
+  markDefaultHandled()
+ }
  suspend fun importPhoto(uri: Uri)=withContext(Dispatchers.IO) {mutex.withLock {
   val entry=context.contentResolver.openInputStream(uri)?.use {wallpapers.add(it,"My photo")} ?: error("Cannot open selected photo.")
   val old=mutable.value.photo
-  save(mutable.value.copy(photo=entry.file,cropX=0.5f,cropY=0.5f));deleteOldPhoto(old)
+  save(mutable.value.copy(photo=entry.file,cropX=0.5f,cropY=0.5f));markDefaultHandled();deleteOldPhoto(old)
  }}
  suspend fun saveOnlineWallpaper(item: OnlineWallpaper): String {
   savedWallpapers.value.firstOrNull {it.title=="Photo ${item.id}" && it.sourceUrl==item.sourceUrl && wallpapers.file(it.file).isFile}?.let {return it.file}
@@ -103,7 +116,7 @@ class WallRepository(private val context: Context) {
  suspend fun chooseWallpaper(path: String)=withContext(Dispatchers.IO) {mutex.withLock {
   check(savedWallpapers.value.any {it.file==path} && wallpapers.file(path).isFile) {"Saved wallpaper is missing."}
   val old=mutable.value.photo
-  save(mutable.value.copy(photo=path,cropX=0.5f,cropY=0.5f));if(old!=path) deleteOldPhoto(old)
+  save(mutable.value.copy(photo=path,cropX=0.5f,cropY=0.5f));markDefaultHandled();if(old!=path) deleteOldPhoto(old)
  }}
  suspend fun removeWallpaper(path: String)=withContext(Dispatchers.IO) {mutex.withLock {wallpapers.remove(path,mutable.value.photo)}}
  private fun restoreLast() {
@@ -115,6 +128,7 @@ class WallRepository(private val context: Context) {
    else -> wallpapers.file(last.photo).inputStream().use {wallpapers.add(it,"Last-used background").file}
   }
   save(mutable.value.copy(photo=path,background=last.background,cropX=last.cropX,cropY=last.cropY))
+  markDefaultHandled()
   if(old!=path) deleteOldPhoto(old)
  }
  suspend fun useLastWallpaper()=withContext(Dispatchers.IO) {mutex.withLock {restoreLast()}}
@@ -128,11 +142,11 @@ class WallRepository(private val context: Context) {
     ?: error("No readable static wallpaper. Choose its original image instead.")
    val entry=ParcelFileDescriptor.AutoCloseInputStream(descriptor).use {wallpapers.add(it,"Imported lock-screen wallpaper")}
    val old=mutable.value.photo
-   save(mutable.value.copy(photo=entry.file,cropX=0.5f,cropY=0.5f));deleteOldPhoto(old)
+   save(mutable.value.copy(photo=entry.file,cropX=0.5f,cropY=0.5f));markDefaultHandled();deleteOldPhoto(old)
   } catch(e: SecurityException) {throw IllegalStateException("Android blocked wallpaper access. Choose its original image instead.",e)}
  }}
  suspend fun usePalette(name: String)=withContext(Dispatchers.IO) {mutex.withLock {
-  val old=mutable.value.photo;save(mutable.value.copy(photo="",background=name));deleteOldPhoto(old)
+  val old=mutable.value.photo;save(mutable.value.copy(photo="",background=name));markDefaultHandled();deleteOldPhoto(old)
  }}
  fun outputSize(): Pair<Int,Int> {
   val display=context.getSystemService(DisplayManager::class.java).getDisplay(android.view.Display.DEFAULT_DISPLAY)

@@ -37,6 +37,13 @@ class WallViewModel(app: Application): AndroidViewModel(app) {
     catch(e: Exception) {_preview.value=null;_previewError.value=e.message ?: "Preview failed";messages.emit(_previewError.value)}
    }
   }
+  // First launch only: fetch the default Studio photo. Stays quiet on failure so an offline
+  // start simply keeps the gradient, and does not block or flag the rest of the app as busy.
+  viewModelScope.launch {
+   try {repo.ensureDefaultWallpaper()}
+   catch(e: CancellationException) {throw e}
+   catch(_: Exception) {}
+  }
   RotationSchedule.set(app,settings.value.hours)
  }
  private fun operation(success: String?=null,block: suspend ()->Unit) {
@@ -89,12 +96,12 @@ class WallViewModel(app: Application): AndroidViewModel(app) {
   if(_download.value.running) return
   val levels=settings.value.levels.sortedDescending()
   if(levels.isEmpty()) {messages.tryEmit("Select at least one JLPT level to download.");return}
-  _download.value=DownloadState(true,"Starting download…")
+  _download.value=DownloadState(true,"Starting download\u2026")
   viewModelScope.launch {
    val errors=mutableListOf<String>();var total=0
    try {
     for(level in levels) {
-     _download.value=DownloadState(true,"Downloading N$level…")
+     _download.value=DownloadState(true,"Downloading N$level\u2026")
      try {total+=repo.downloadLevel(level)}
      catch(e: CancellationException) {throw e}
      catch(e: Exception) {errors+="N$level: ${e.message ?: "Download failed"}"}
