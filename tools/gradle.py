@@ -3,11 +3,11 @@
 import hashlib, os, pathlib, shutil, subprocess, sys, tempfile, urllib.request, zipfile
 VERSION = "8.11.1"
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-CACHE = pathlib.Path(os.environ.get("GRADLE_USER_HOME", pathlib.Path.home()/".gradle"))/"kotoba-bootstrap"
+CACHE = pathlib.Path(os.environ.get("GRADLE_USER_HOME", pathlib.Path.home()/".gradle"))/"kumo-bootstrap"
 HOME = CACHE / ("gradle-"+VERSION)
 URL = "https://services.gradle.org/distributions/gradle-"+VERSION+"-bin.zip"
 def download(url, path):
-    request = urllib.request.Request(url, headers={"User-Agent":"KotobaWall-GradleBootstrap/1.0"})
+    request = urllib.request.Request(url, headers={"User-Agent":"Kumo-GradleBootstrap/1.0"})
     with urllib.request.urlopen(request, timeout=120) as r, open(path,"wb") as f:
         shutil.copyfileobj(r,f)
 def main():
