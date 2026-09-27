@@ -27,6 +27,10 @@ jobs:
 
       - name: Set up Android
         uses: android-actions/setup-android@v3
+        with:
+          # See android.yml: the default "tools" package no longer exists in the
+          # SDK repository and its absence fails the whole job.
+          packages: ''
 
       - name: Install Android SDK
         run: |

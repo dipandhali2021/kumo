@@ -12,6 +12,12 @@ jobs:
       distribution: temurin
       java-version: '17'
    - uses: android-actions/setup-android@v3
+     with:
+      # The action defaults to installing the legacy "tools" package, which Google
+      # has removed from the SDK repository. sdkmanager then fails with
+      # "Failed to find package 'tools'" and aborts the job. The real packages are
+      # installed on the next line and no adb is used, so skip the default set.
+      packages: ''
    - run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
    - uses: gradle/actions/setup-gradle@v4
      with:
