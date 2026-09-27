@@ -6,3 +6,9 @@ local.properties
 .idea/
 __pycache__/
 .DS_Store
+
+# Local release signing material and credentials. Never commit these.
+kumo-release.credentials
+keystore-base64.txt
+*.p12
+*.pfx
