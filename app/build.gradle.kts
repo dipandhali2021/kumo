@@ -12,10 +12,10 @@ val releaseKeyAlias=providers.environmentVariable("KUMO_KEY_ALIAS").orNull
 val releaseKeyPassword=providers.environmentVariable("KUMO_KEY_PASSWORD").orNull
 
 android {
- namespace = "com.kotobawall.app"
+ namespace = "com.kumo.app"
  compileSdk = 35
  defaultConfig {
-  applicationId = "com.kotobawall.app"
+  applicationId = "com.kumo.app"
   minSdk = 24
   targetSdk = 35
   versionCode = 10

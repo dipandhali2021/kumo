@@ -6,9 +6,9 @@
  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
  <uses-permission android:name="android.permission.WAKE_LOCK" />
- <application android:name=".KotobaApplication" android:allowBackup="false"
+ <application android:name=".KumoApplication" android:allowBackup="false"
   android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher"
-  android:supportsRtl="true" android:theme="@style/Theme.KotobaWall">
+  android:supportsRtl="true" android:theme="@style/Theme.Kumo">
   <activity android:name=".MainActivity" android:exported="true">
    <intent-filter>
     <action android:name="android.intent.action.MAIN" />

@@ -71,7 +71,7 @@ The earlier 27 MB debug APK was not provided for analysis. No final size or perc
 
 ## Upgrade and distribution warning
 
-The application ID remains `com.kotobawall.app` so same-key updates retain existing settings, photos, vocabulary and the on-device Pexels credential. Kumo is a display-name change, not a separate app identity.
+The application ID is `com.kumo.app`. It was previously `com.kotobawall.app`, so Kumo is a separate app identity rather than a display-name change. Android installs it alongside the old app instead of updating it in place, and saved photos, vocabulary, settings and the on-device Pexels credential do not carry over. Anyone moving from the old ID should install Kumo first, confirm their data is back, then uninstall the old app. From now on, same-key updates to `com.kumo.app` do retain everything.
 
 A new production key differs from your existing debug key. Android normally refuses to install one over the other. Do NOT uninstall blindly: uninstalling deletes the saved collection, settings, vocabulary cache and API key. Preserve original photos and anything else you need before a deliberate migration. Future production updates must use the same signing key.
 

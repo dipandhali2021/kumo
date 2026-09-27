@@ -1,6 +1,6 @@
 # Kumo · 雲
 
-A lightweight Japanese-learning lock-screen app for Android, built with Kotlin, Jetpack Compose and Material 3. Kumo (くも / 雲) means cloud, and the app icon is that kanji. Formerly Kotoba Wall.
+A lightweight Japanese-learning lock-screen app for Android, built with Kotlin, Jetpack Compose and Material 3. Kumo (くも / 雲) means cloud, and the app icon is that kanji.
 
 Kumo renders a vocabulary card on your own background and sets it as your lock-screen wallpaper, on demand or automatically. Everything is drawn on the device.
 
@@ -61,7 +61,7 @@ Debug output: `app/build/outputs/apk/debug/app-debug.apk`. The bundled `gradlew`
 
 Follow [docs/PRODUCTION_RELEASE.md](docs/PRODUCTION_RELEASE.md): create or reuse a stable private signing key, add the four Actions secrets, then run **Actions → Kumo production release → Run workflow**. The run produces a signed APK and AAB, the R8 mapping file, SHA-256 checksums and a measured size report as artifacts. Nothing is uploaded to Google Play.
 
-Release packaging fails when signing is not configured; there is no fallback to a debug signature. Never commit signing material or API keys. A production key normally differs from a debug key, so Android may refuse an in-place update, and uninstalling deletes saved photos, vocabulary and settings. Same-key updates keep your data because the application ID stays `com.kotobawall.app`.
+Release packaging fails when signing is not configured; there is no fallback to a debug signature. Never commit signing material or API keys. A production key normally differs from a debug key, so Android may refuse an in-place update, and uninstalling deletes saved photos, vocabulary and settings. Same-key updates keep your data because the application ID stays `com.kumo.app` from this release onward. Kumo previously shipped as `com.kotobawall.app`; because the application ID changed at the rename, Android installs it as a separate app and no saved photos, vocabulary, settings or Pexels key carry over from the old ID.
 
 ## Releases
 
